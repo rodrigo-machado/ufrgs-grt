@@ -3,6 +3,7 @@ module Graph.Digraph
 	, Node (..)
 	, Digraph (..)
 	, Morphism (..)
+	, EdgeAction (..)
 	, empty
 	, addNode
 	, addEdge
@@ -12,15 +13,22 @@ module Graph.Digraph
 	, keepEdge
 	, nodes
 	, edges
+	, findNode
 	, source
 	, target
+	, nodeID
+	, sourceID
+	, targetID
+	, addNodeAction 
+	, addEdgeAction 
 	, applyMorphism
 	) where
 
 import Control.Monad
 
 import Data.IntMap (IntMap)
-import qualified Data.IntMap as IM
+import qualified Data.IntMap	as IM
+import qualified Data.List	as L
 
 
 -- Edge idE (idSrc, idTgt) payload
@@ -77,22 +85,77 @@ keepEdge (Edge eid _ _) g@(Digraph ns es) =
 		then return g
 		else fail $ "keepEdge: edge " ++ show eid ++ " doesn't exist"
 
+findNode :: Int -> Digraph a b -> Maybe (Node a)
+findNode id (Digraph nm _) =
+	IM.lookup id nm
+
 nodes :: Digraph a b -> [(Node a)]
 nodes (Digraph nm _) = map snd $ IM.toList nm
 
 edges :: Digraph a b -> [(Edge b)]
 edges (Digraph _ em) = map snd $ IM.toList em
 
-source :: Edge b -> Int
-source (Edge _ (src, _) _) = src
+{- if 'e' is an Edge, it's valid so findNode will never fail -}
+source :: Edge b -> Digraph a b -> Node a
+source e d =
+	let (Just n) = findNode (sourceID e) d
+	in n
+	
 
-target :: Edge b -> Int
-target (Edge _ (_, tar) _) = tar
+target :: Edge b -> Digraph a b -> Node a
+target e d =
+	let (Just n ) = findNode (targetID e) d
+	in n
+
+nodeID :: Node a -> Int
+nodeID (Node id _) = id
+
+sourceID :: Edge b -> Int
+sourceID (Edge _ (src, _) _) = src
+
+targetID :: Edge b -> Int
+targetID (Edge _ (_, tar) _) = tar
+
+----------------------------------------------------------------------------
+-- | Morphism related functions
 
 type NodeAction a = (Maybe (Node a), Maybe (Node a))
 type EdgeAction a = (Maybe (Edge a), Maybe (Edge a))
 
 data Morphism a b = Morphism [NodeAction a] [EdgeAction b]
+instance (Show a, Show b) => Show (Morphism a b) where
+	show (Morphism nal eal) = 
+		"\nNode mappings:\n"
+		++ (L.foldr (\s acc -> (showNodeAction s) ++ acc) [] nal)
+		++ "\nEdge mappings:\n"
+		++ (L.foldr (\s acc -> (showEdgeAction s) ++ acc) [] eal)
+		++ "\n"
+
+showNodeAction :: (Show a) => NodeAction a -> String
+showNodeAction na = case na of
+	(Nothing, Nothing) -> "__ ==> __\n"
+	(Just (Node id _), Nothing)-> show id ++ " ==> __\n"
+	(Nothing, Just (Node id _)) -> show id ++ " ==> __\n"
+	(Just (Node lid _), Just (Node gid _))
+		-> show lid ++ " ==> " ++ show gid ++ "\n"
+
+showEdgeAction :: (Show a) => EdgeAction a -> String
+showEdgeAction na = case na of
+	(Nothing, Nothing) -> "__ ==> __"
+	(Just (Edge _ _ p), Nothing)-> show p ++ " ==> __"
+	(Nothing, Just (Edge _ _ p)) -> show p ++ " __ ==> p"
+	(Just (Edge _ _ lp), Just (Edge _ _ gp))
+		-> show lp ++ " ==> " ++ show gp
+
+
+addNodeAction :: Node a -> Node a -> Morphism a b -> Morphism a b
+addNodeAction ln rn (Morphism nal eal) =
+	Morphism ((Just ln, Just rn) : nal) eal
+
+addEdgeAction :: Edge b -> Edge b -> Morphism a b -> Morphism a b
+addEdgeAction le re (Morphism nal eal) =
+	Morphism nal ((Just le, Just re) : eal)
+
 
 nodeAction :: (Monad m, Eq a) => NodeAction a -> (Digraph a b -> m (Digraph a b))
 nodeAction (Nothing, Just n) = addNode n
