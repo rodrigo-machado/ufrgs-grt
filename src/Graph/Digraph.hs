@@ -145,7 +145,7 @@ showEdgeAction na = case na of
 	(Just (Edge _ _ p), Nothing)-> show p ++ " ==> __"
 	(Nothing, Just (Edge _ _ p)) -> show p ++ " __ ==> p"
 	(Just (Edge _ _ lp), Just (Edge _ _ gp))
-		-> show lp ++ " ==> " ++ show gp
+		-> show lp ++ " ==> " ++ show gp ++ "\n"
 
 
 addNodeAction :: Node a -> Node a -> Morphism a b -> Morphism a b
