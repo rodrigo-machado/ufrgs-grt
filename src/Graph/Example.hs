@@ -7,11 +7,15 @@ l = D.empty
 g = D.empty
 tg = D.empty
 
-ln = [D.Node 1 (1, "1"), 
-	  D.Node 2 (1, "2"),
-	  D.Node 3 (2, "3")]
-le = [D.Edge 4 (2, 1) "2 -> 1",
-	  D.Edge 5 (1, 3) "1 -> 3"]
+ln = 	[ D.Node 1 (1, "1")
+	, D.Node 2 (1, "2")
+	, D.Node 3 (2, "3")
+	, D.Node 4 (1, "4")
+	]
+le = 	[ D.Edge 4 (2, 1) "2 -> 1"
+	, D.Edge 5 (1, 3) "1 -> 3"
+	, D.Edge 6 (4, 4) "4 -> 4"
+	]
 
 l1 = foldM (\d n -> D.addNode n d) l ln :: Maybe (D.Digraph (TypeInfo String) String)
 l2 = l1 >>=
@@ -36,4 +40,6 @@ tdg = case g2 of
 	Just t -> TypedDigraph t tg
 	otherwise -> TypedDigraph g tg
 
-mappings = testFunc 4 tdl tdg
+
+--mappings = testFunc 4 tdl tdg
+morphisms = matchEdges tdl tdg

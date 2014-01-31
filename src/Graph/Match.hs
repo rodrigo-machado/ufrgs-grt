@@ -3,6 +3,7 @@ module Graph.Match
 	conditionList
 	, applyCond
 	, applyCondMult
+	, matchEdges
 	)
 	where
 
@@ -115,42 +116,35 @@ satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 this context.  Returns a list of Morphisms, each with the new possibility added
 -}
 applyCond
-	:: Edge b
+	:: [Edge b]
 	-> TypedDigraph a b
 	-> TypedDigraph a b
 	-> Morphism (TypeInfo a) b
 	-> [Morphism (TypeInfo a) b]
-applyCond le l@(TypedDigraph dl tl) g@(TypedDigraph dg _) m =
+applyCond (le:les) l@(TypedDigraph dl tl) g@(TypedDigraph dg _) m =
 	let candidates = mapMaybe 
 		(\ge -> satisfiesCond conditionList l le g ge m) $ edges dg
 	    newMorphisms = foldr (\c acc -> c : acc) [] candidates
 	    Just newDigraph = removeEdge le dl
 	in applyCondMult 
+		les
 		(TypedDigraph newDigraph tl)
 		g
 		newMorphisms
 
 applyCondMult
-	:: TypedDigraph a b
+	:: [Edge b]
+	-> TypedDigraph a b
 	-> TypedDigraph a b
 	-> [Morphism (TypeInfo a) b]
 	-> [Morphism (TypeInfo a) b]
-applyCondMult l@(TypedDigraph d _) g ml =
-	let el = edges d
-	in case el of
+applyCondMult les l@(TypedDigraph d _) g ml =
+	case les of
 		[] -> ml
-		otherwise ->
-			el >>= \e -> ml >>= \m -> applyCond e l g m
+		otherwise -> ml >>= \m -> applyCond les l g m
 
-				
+emptyMorphism = Morphism [] [] :: Morphism (TypeInfo a) b
 
-{- | written for test purposes in Example.hs.  -}
-{-
-testFunc :: Int -> TypedDigraph a b -> TypedDigraph a b -> Maybe [Morphism (TypeInfo a) b]
-testFunc id l@(TypedDigraph (Digraph _ em) _) g =
-	let le = IM.lookup id em
-	in case le of
-		Just e -> Just $ 
-			applyCond l e g (Morphism [] [])
-		Nothing -> Nothing
--}
+matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism (TypeInfo a) b]
+matchEdges l@(TypedDigraph dg _) g =
+	applyCondMult (edges dg) l g [emptyMorphism]
