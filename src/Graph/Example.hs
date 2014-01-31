@@ -26,9 +26,11 @@ gn = [D.Node 10 (1, "a"),
 	  D.Node 11 (1, "b"),
 	  D.Node 12 (1, "c"),
 	  D.Node 13 (2, "d")]
-ge = [D.Edge 15 (10, 11) "a -> b",
-	  D.Edge 16 (10, 12) "a -> c",
-	  D.Edge 17 (12, 13) "c -> d"]
+ge = 	[ D.Edge 15 (10, 11) "a -> b"
+	, D.Edge 16 (10, 12) "a -> c"
+	, D.Edge 17 (12, 13) "c -> d"
+	, D.Edge 18 (11, 11) "b -> b"
+	]
 g1 = foldM (\d n -> D.addNode n d) g gn :: Maybe (D.Digraph (TypeInfo String) String)
 g2 = g1 >>=
 	(\g -> foldM (\d e -> D.addEdge e d) g ge) :: Maybe (D.Digraph (TypeInfo String) String)

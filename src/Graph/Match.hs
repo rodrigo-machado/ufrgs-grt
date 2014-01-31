@@ -1,8 +1,6 @@
 module Graph.Match
 	(
 	conditionList
-	, applyCond
-	, applyCondMult
 	, matchEdges
 	)
 	where
@@ -17,14 +15,6 @@ import qualified Data.List as L
 findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
 findMatches l g = undefined
 	
-{- | given two Graphs 'l' and 'g', an Edge id from Graph 'l' 'eid' and 
-   a Morphism 's' (representing the current state), returns a list of valid 
-   Morphisms where the given edge and it's source/target nodes are mapped
-   to all valid members (i.e. those that satisfy the CSP) from graph 'g'.
--}
-matchEdge :: TypedDigraph a b -> TypedDigraph a b -> Int -> Morphism a b -> [Morphism a b]
-matchEdge = undefined
-
 {- | A Condition consists of a function that, given a Morphism 'm', two
 TypedDigraphs 'l', 'g' and two Edges 'le', 'ge', checks if 'ge' satisfies it
 -}
@@ -88,8 +78,18 @@ tarIDCond l le g ge m@(Morphism nal _) =
 		Just (_, Just n) -> gtar == nodeID n
 		otherwise -> True
 
+{- | If 'le' is a loop edge, forces 'ge' to be a loop in 'g' -}
+loopCond :: Condition a b
+loopCond l le g ge m =
+	let lsrc = sourceID le
+	    ltar = targetID le
+	    gsrc = sourceID ge
+	    gtar = targetID ge
+	in if lsrc == ltar
+		then gsrc == gtar
+		else True
 
-conditionList = [srcTypeCond, tarTypeCond, srcIDCond, tarIDCond]
+conditionList = [srcTypeCond, tarTypeCond, srcIDCond, tarIDCond, loopCond]
 
 {- | if all conditions in 'cl' get satisfied by the given edge 'ge', returns the
 'm' Morphism with the new source/target pairs added. 
