@@ -105,9 +105,10 @@ satisfiesCond
 satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
-		(addNodeAction (target le ld) (target ge gd)
-		. addNodeAction (source le ld) (source ge gd)
-		. addEdgeAction	le ge) m
+		addNodeAction (target le ld) (target ge gd)
+		$ addNodeAction (source le ld) (source ge gd)
+		$ addEdgeAction	le ge
+		$ m
 	else Nothing
 		
 
