@@ -148,12 +148,26 @@ showEdgeAction na = case na of
 		-> show lp ++ " ==> " ++ show gp ++ "\n"
 
 
+{-
 addNodeAction :: Node a -> Node a -> Morphism a b -> Morphism a b
-addNodeAction ln rn (Morphism nal eal) =
-	Morphism ((Just ln, Just rn) : nal) eal
-
+addNodeAction ln rn m@(Morphism nal eal) =
+	if (Just ln, Just rn) `L.notElem` nal
+		then Morphism ((Just ln, Just rn) : nal) eal
+		else m
+-}
+addNodeAction :: Node a -> Node a -> Morphism a b -> Morphism a b
+addNodeAction ln rn m@(Morphism nal eal) =
+	let lid = nodeID ln
+	    rid = nodeID rn
+	in if foldr (\(Just l, Just r) acc ->
+		(lid == nodeID l && rid == nodeID r) 
+		|| acc
+		) False nal
+		then m
+		else Morphism ((Just ln, Just rn) : nal) eal
+		
 addEdgeAction :: Edge b -> Edge b -> Morphism a b -> Morphism a b
-addEdgeAction le re (Morphism nal eal) =
+addEdgeAction le re m@(Morphism nal eal) =
 	Morphism nal ((Just le, Just re) : eal)
 
 

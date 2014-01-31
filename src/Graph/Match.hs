@@ -1,10 +1,10 @@
 module Graph.Match
 	(
-	conditionList
-	, matchEdges
+	matchEdges
 	)
 	where
 
+import Control.Monad -- foldM
 import Data.Maybe
 import Graph.Digraph
 import Graph.TypedDigraph
@@ -105,11 +105,11 @@ satisfiesCond
 satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
-		addNodeAction (target le ld) (target ge gd)
-		$ addNodeAction (source le ld) (source ge gd)
-		$ addEdgeAction	le ge
-		$ m
+		(addNodeAction (target le ld) (target ge gd)
+		. addNodeAction (source le ld) (source ge gd)
+		. addEdgeAction	le ge) m
 	else Nothing
+		
 
 {- | given a Condition list, a Morphism 'm', two Graphs 'l', 'g' and an Edge
 'le', searches for all edges from graph 'g' that satisfies the conditions in
