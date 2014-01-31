@@ -28,16 +28,16 @@ matchEdge = undefined
 TypedDigraphs 'l', 'g' and two Edges 'le', 'ge', checks if 'ge' satisfies it
 -}
 type Condition a b =
-	Morphism (TypeInfo a) b
-	-> TypedDigraph a b
+	TypedDigraph a b
 	-> Edge b 
 	-> TypedDigraph a b
 	-> Edge b
+	-> Morphism (TypeInfo a) b
 	-> Bool
 
 {- | checks if 'le' and 'ge' have source nodes from same type -}
 srcTypeCond :: Condition a b
-srcTypeCond m l le g ge =
+srcTypeCond l le g ge m =
 	ltype == gtype
 	where
 		ltype = srcType le l
@@ -45,7 +45,7 @@ srcTypeCond m l le g ge =
 
 {- | checks if 'le' and 'ge' have target nodes from same type -}
 tarTypeCond :: Condition a b
-tarTypeCond m l le g ge =
+tarTypeCond l le g ge m =
 	ltype == gtype
 	where
 		ltype = tarType le l
@@ -57,7 +57,7 @@ mapped.  If so, 'ge' is a matching Edge. If 'le's source doesn't occur in 'm',
 any 'ge' will satisfy this condition
 -}
 srcIDCond :: Condition a b
-srcIDCond m@(Morphism nal _) l le g ge =
+srcIDCond l le g ge m@(Morphism nal _) =
 	let lsrc = sourceID le
 	    gsrc = sourceID ge
 	    matched = (\na ->
@@ -75,7 +75,7 @@ mapped.  If so, 'ge' is a matching Edge. If 'le's target doesn't occur in 'm',
 any 'ge' will satisfy this condition
 -}
 tarIDCond :: Condition a b
-tarIDCond m@(Morphism nal _) l le g ge =
+tarIDCond l le g ge m@(Morphism nal _) =
 	let ltar = targetID le
 	    gtar = targetID ge
 	    matched = (\na ->
@@ -95,14 +95,14 @@ conditionList = [srcTypeCond, tarTypeCond, srcIDCond, tarIDCond]
 -}
 satisfiesCond
 	:: [Condition a b]
+	-> TypedDigraph a b
+	-> Edge b
+	-> TypedDigraph a b
+	-> Edge b
 	-> Morphism (TypeInfo a) b
-	-> TypedDigraph a b
-	-> Edge b
-	-> TypedDigraph a b
-	-> Edge b
 	-> Maybe (Morphism (TypeInfo a) b)
-satisfiesCond cl m l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge =
-	if foldr (\c acc -> (c m l le g ge) && acc) True cl 
+satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
+	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
 		addNodeAction (target le ld) (target ge gd)
 		$ addNodeAction (source le ld) (source ge gd)
@@ -116,13 +116,13 @@ this context.  Returns a list of Morphisms, each with the new possibility added
 -}
 applyCond
 	:: [Condition a b]
-	-> Morphism (TypeInfo a) b
 	-> TypedDigraph a b
 	-> Edge b
 	-> TypedDigraph a b
+	-> Morphism (TypeInfo a) b
 	-> [Morphism (TypeInfo a) b]
-applyCond cl m l le g@(TypedDigraph dg _) =
-	let candidates = mapMaybe (\ge -> satisfiesCond cl m l le g ge) $ edges dg
+applyCond cl l le g@(TypedDigraph dg _) m =
+	let candidates = mapMaybe (\ge -> satisfiesCond cl l le g ge m) $ edges dg
 	in foldr (\c acc -> c : acc) [] candidates 
 
 {- | written for test purposes in Example.hs.  -}
@@ -130,5 +130,6 @@ testFunc :: Int -> TypedDigraph a b -> TypedDigraph a b -> Maybe [Morphism (Type
 testFunc id l@(TypedDigraph (Digraph _ em) _) g =
 	let le = IM.lookup id em
 	in case le of
-		Just e -> Just $ applyCond conditionList (Morphism [] []) l e g
+		Just e -> Just $ 
+			applyCond conditionList l e g (Morphism [] [])
 		Nothing -> Nothing
