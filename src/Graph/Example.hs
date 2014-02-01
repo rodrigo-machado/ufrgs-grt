@@ -11,6 +11,7 @@ ln = 	[ D.Node 1 (1, "1")
 	, D.Node 2 (1, "2")
 	, D.Node 3 (2, "3")
 	, D.Node 4 (1, "4")
+	, D.Node 5 (2, "5")
 	]
 le = 	[ D.Edge 4 (2, 1) "2 -> 1"
 	, D.Edge 5 (1, 3) "1 -> 3"
@@ -27,6 +28,8 @@ gn = 	[ D.Node 10 (1, "a")
 	, D.Node 12 (1, "c")
 	, D.Node 13 (2, "d")
 	, D.Node 14 (1, "e")
+	, D.Node 15 (2, "f")
+	, D.Node 16 (2, "g")
 	]
 ge = 	[ D.Edge 15 (10, 11) "a -> b"
 	, D.Edge 16 (10, 12) "a -> c"
@@ -45,5 +48,4 @@ tdg = case g2 of
 	otherwise -> TypedDigraph g tg
 
 
---mappings = testFunc 4 tdl tdg
 morphisms = matchEdges tdl tdg
