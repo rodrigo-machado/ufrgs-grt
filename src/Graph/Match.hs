@@ -1,6 +1,7 @@
 module Graph.Match
 	(
 	matchEdges
+	, findMatches
 	)
 	where
 
@@ -12,8 +13,11 @@ import qualified Data.IntMap as IM
 import qualified Data.List as L
 
 
-findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
-findMatches l g = undefined
+findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism (TypeInfo a) b]
+findMatches l g = 
+	let matches = matchEdges l g 
+	in matches >>= \m -> (matchRemNodes l g m)
+
 	
 {- | A Condition consists of a function that, given a Morphism 'm', two
 TypedDigraphs 'l', 'g' and two Edges 'le', 'ge', checks if 'ge' satisfies it
@@ -144,8 +148,59 @@ applyCondMult les l@(TypedDigraph d _) g ml =
 		[] -> ml
 		otherwise -> ml >>= \m -> applyCond les l g m
 
-emptyMorphism = Morphism [] [] :: Morphism (TypeInfo a) b
-
+{- | given to TypedDigraph's, returns a list of all possible morphisms
+considering only the subgraph's inducted by the edges -}
 matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism (TypeInfo a) b]
 matchEdges l@(TypedDigraph dg _) g =
-	applyCondMult (edges dg) l g [emptyMorphism]
+	applyCondMult (edges dg) l g [Morphism [] []]
+
+{- | given a Morphism and two lists of nodes, add's NodeActions where the nodes
+are sequencially taken from the lists -}
+addNodeMatch
+	:: Maybe (Morphism (TypeInfo a) b)
+	-> [Node (TypeInfo a)]
+	-> [Node (TypeInfo a)]
+	-> Maybe (Morphism (TypeInfo a) b)
+addNodeMatch m [] _ = m
+addNodeMatch m _ [] = Nothing
+addNodeMatch Nothing _ _ = Nothing
+addNodeMatch (Just m) (x:xs) (y:ys) =
+	if nodeType x == nodeType y
+		then addNodeMatch (Just $ addNodeAction x y m) xs ys
+		else Nothing
+
+{- | given two lists of nodes and a morphism, returns a list of all morphisms,
+each corresponding of a unique combination of all nodes from both lists and
+without repetition
+-}
+addNodeMatches
+	:: [Node (TypeInfo a)]
+	-> [Node (TypeInfo a)]
+	-> Morphism (TypeInfo a) b
+	-> [Morphism (TypeInfo a) b]
+addNodeMatches xs ys m =
+	mapMaybe (addNodeMatch (Just m) xs) $ L.permutations ys
+	
+{- | Creates a lists of morphisms, each adding to the given Morphism 'm' a
+unique combination of the matches considering the nodes not already contained
+in 'm' -}
+matchRemNodes
+	:: TypedDigraph a b
+	-> TypedDigraph a b
+	-> Morphism (TypeInfo a) b
+	-> [Morphism (TypeInfo a) b]
+matchRemNodes
+	l@(TypedDigraph dl _)
+	g@(TypedDigraph dg _)
+	m@(Morphism nal _) =
+	let lnl = nodes dl
+	    gnl = nodes dg
+	    mlnl = foldr (\(Just ln, _) acc -> ln : acc) [] nal
+	    mgnl = foldr (\(_, Just gn) acc -> gn : acc) [] nal
+	    rlnl = L.deleteFirstsBy
+		(\x y -> nodeID x == nodeID y) lnl mlnl
+	    rgnl = L.deleteFirstsBy
+		(\x y -> nodeID x == nodeID y) gnl mgnl
+	in addNodeMatches rlnl rgnl m
+
+
