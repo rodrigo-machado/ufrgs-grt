@@ -19,8 +19,11 @@ type TypeInfo a = (Int, a)
 data TypedDigraph a b = TypedDigraph (Digraph (TypeInfo a) b) (TGraph a b)
 	deriving (Show)
 
-nodeType :: Int -> TypedDigraph a b -> Maybe Int
-nodeType id td@(TypedDigraph (Digraph nm em) _) =
+nodeType :: Node (TypeInfo a) -> Int
+nodeType (Node _ (t, _)) = t
+
+findNodeType :: Int -> TypedDigraph a b -> Maybe Int
+findNodeType id td@(TypedDigraph (Digraph nm em) _) =
 	let n = IM.lookup id nm
 	in case n of
 		Nothing -> Nothing
@@ -28,8 +31,8 @@ nodeType id td@(TypedDigraph (Digraph nm em) _) =
 
 srcType :: Edge b -> TypedDigraph a b -> Maybe Int
 srcType (Edge _ (s, _) _) l =
-	nodeType s l
+	findNodeType s l
 
 tarType :: Edge b -> TypedDigraph a b -> Maybe Int
 tarType (Edge _ (_, t) _) l =
-	nodeType t l
+	findNodeType t l
