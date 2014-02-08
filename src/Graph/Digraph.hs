@@ -38,9 +38,15 @@ import qualified Data.List	as L
 
 
 -- Edge idE (idSrc, idTgt) payload
-data Edge a = Edge Int (Int, Int) (Int, a) deriving (Show,Eq,Read)
+data Edge a = Edge Int (Int, Int) (Int, a) deriving (Show, Read)
+instance Eq (Edge a) where
+	Edge lid _ _ == Edge gid _ _ = lid == gid
+
 -- Node idN payload
-data Node a = Node Int (Int, a) deriving (Show,Eq,Read)
+data Node a = Node Int (Int, a) deriving (Show, Read)
+instance Eq (Node a) where
+	Node lid _ == Node gid _ = lid == gid
+	
 
 data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show)
 
@@ -159,23 +165,14 @@ showEdgeAction na = case na of
 		-> show lp ++ " ==> " ++ show gp ++ "\n"
 
 
-{-
+-- | Checks if NodeAction already exists. If so, adds it. Otherwise, returns
+-- the original Morphism
 addNodeAction :: Node a -> Node a -> Morphism a b -> Morphism a b
 addNodeAction ln rn m@(Morphism nal eal) =
 	if (Just ln, Just rn) `L.notElem` nal
 		then Morphism ((Just ln, Just rn) : nal) eal
 		else m
--}
-addNodeAction :: Node a -> Node a -> Morphism a b -> Morphism a b
-addNodeAction ln rn m@(Morphism nal eal) =
-	let lid = nodeID ln
-	    rid = nodeID rn
-	in if foldr (\(Just l, Just r) acc ->
-		(lid == nodeID l && rid == nodeID r) 
-		|| acc
-		) False nal
-		then m
-		else Morphism ((Just ln, Just rn) : nal) eal
+
 		
 addEdgeAction :: Edge b -> Edge b -> Morphism a b -> Morphism a b
 addEdgeAction le re m@(Morphism nal eal) =
