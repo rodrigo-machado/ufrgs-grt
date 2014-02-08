@@ -1,6 +1,5 @@
 import Control.Monad
 import qualified Graph.Digraph as D
-import Graph.TypedDigraph
 import Graph.Match
 
 l = D.empty
@@ -18,9 +17,9 @@ le = 	[ D.Edge 4 (2, 1) "2 -> 1"
 	, D.Edge 6 (4, 4) "4 -> 4"
 	]
 
-l1 = foldM (\d n -> D.addNode n d) l ln :: Maybe (D.Digraph (TypeInfo String) String)
+l1 = foldM (\d n -> D.addNode n d) l ln :: Maybe (D.Digraph String String)
 l2 = l1 >>=
-	(\l -> foldM (\d e -> D.addEdge e d) l le) :: Maybe (D.Digraph (TypeInfo String) String)
+	(\l -> foldM (\d e -> D.addEdge e d) l le) :: Maybe (D.Digraph String String)
 
 	
 gn = 	[ D.Node 10 (1, "a")
@@ -36,16 +35,16 @@ ge = 	[ D.Edge 15 (10, 11) "a -> b"
 	, D.Edge 17 (12, 13) "c -> d"
 	, D.Edge 18 (14, 14) "e -> e"
 	]
-g1 = foldM (\d n -> D.addNode n d) g gn :: Maybe (D.Digraph (TypeInfo String) String)
+g1 = foldM (\d n -> D.addNode n d) g gn :: Maybe (D.Digraph String String)
 g2 = g1 >>=
-	(\g -> foldM (\d e -> D.addEdge e d) g ge) :: Maybe (D.Digraph (TypeInfo String) String)
+	(\g -> foldM (\d e -> D.addEdge e d) g ge) :: Maybe (D.Digraph String String)
 
 tdl = case l2 of
-	Just t -> TypedDigraph t tg
-	otherwise -> TypedDigraph l tg
+	Just t -> D.TypedDigraph t tg
+	otherwise -> D.TypedDigraph l tg
 tdg = case g2 of
-	Just t -> TypedDigraph t tg
-	otherwise -> TypedDigraph g tg
+	Just t -> D.TypedDigraph t tg
+	otherwise -> D.TypedDigraph g tg
 
 
 morphisms = matchEdges tdl tdg
