@@ -133,10 +133,9 @@ applyCond (le:les) l@(TypedDigraph dl tl) g@(TypedDigraph dg _) m =
 	let candidates = mapMaybe 
 		(\ge -> satisfiesCond conditionList l le g ge m) $ edges dg
 	    newMorphisms = foldr (\c acc -> c : acc) [] candidates
-	    Just newDigraph = removeEdge le dl
 	in applyCondMult 
 		les
-		(TypedDigraph newDigraph tl)
+		(TypedDigraph dl tl)
 		g
 		newMorphisms
 
