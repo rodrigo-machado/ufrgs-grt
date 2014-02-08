@@ -48,4 +48,4 @@ tdg = case g2 of
 	otherwise -> D.TypedDigraph g tg
 
 
-morphisms = matchEdges tdl tdg
+morphisms = findMatches tdl tdg
