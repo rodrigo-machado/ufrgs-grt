@@ -37,7 +37,7 @@ import qualified Data.List	as L
 
 
 -- Edge idE (idSrc, idTgt) payload
-data Edge a = Edge Int (Int, Int) a deriving (Show,Eq,Read)
+data Edge a = Edge Int (Int, Int) (Int, a) deriving (Show,Eq,Read)
 -- Node idN payload
 data Node a = Node Int (Int, a) deriving (Show,Eq,Read)
 
