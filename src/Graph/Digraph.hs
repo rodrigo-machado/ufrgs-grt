@@ -22,6 +22,11 @@ module Graph.Digraph
 	, addNodeAction 
 	, addEdgeAction 
 	, applyMorphism
+	, TypedDigraph (..)
+	, TGraph
+	, nodeType
+	, srcType
+	, tarType
 	) where
 
 import Control.Monad
@@ -34,9 +39,14 @@ import qualified Data.List	as L
 -- Edge idE (idSrc, idTgt) payload
 data Edge a = Edge Int (Int, Int) a deriving (Show,Eq,Read)
 -- Node idN payload
-data Node a = Node Int a deriving (Show,Eq,Read)
+data Node a = Node Int (Int, a) deriving (Show,Eq,Read)
 
 data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show)
+
+data TypedDigraph a b = TypedDigraph (Digraph a b) (TGraph a b)
+	deriving (Show)
+
+type TGraph a b = Digraph a b
 
 empty :: Digraph a b
 empty = Digraph (IM.empty) (IM.empty)
@@ -211,3 +221,21 @@ actionSet (Morphism na ea) = let
 
 applyMorphism :: (Monad m, Eq a, Eq b) => Morphism a b -> Digraph a b -> m (Digraph a b)
 applyMorphism m g = foldM (\g f -> f g) g $ actionSet m
+
+nodeType :: Node a -> Int
+nodeType (Node _ (t, _)) = t
+
+findNodeType :: Int -> TypedDigraph a b -> Maybe Int
+findNodeType id td@(TypedDigraph (Digraph nm em) _) =
+	let n = IM.lookup id nm
+	in case n of
+		Nothing -> Nothing
+		Just (Node _ (tid, _)) -> Just tid
+
+srcType :: Edge b -> TypedDigraph a b -> Maybe Int
+srcType (Edge _ (s, _) _) l =
+	findNodeType s l
+
+tarType :: Edge b -> TypedDigraph a b -> Maybe Int
+tarType (Edge _ (_, t) _) l =
+	findNodeType t l
