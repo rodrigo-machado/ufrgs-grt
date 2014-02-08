@@ -1,7 +1,6 @@
 module Graph.Rewriting where
 
 import Graph.Digraph
-import Graph.TypedDigraph
 
 type Rule a b = Morphism a b a b
 
