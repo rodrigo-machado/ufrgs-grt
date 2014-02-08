@@ -1,7 +1,6 @@
 module Graph.Match
 	(
-	matchEdges
-	, findMatches
+	findMatches
 	)
 	where
 
