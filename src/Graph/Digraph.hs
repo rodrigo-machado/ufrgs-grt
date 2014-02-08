@@ -25,6 +25,7 @@ module Graph.Digraph
 	, TypedDigraph (..)
 	, TGraph
 	, nodeType
+	, edgeType
 	, srcType
 	, tarType
 	) where
@@ -224,6 +225,9 @@ applyMorphism m g = foldM (\g f -> f g) g $ actionSet m
 
 nodeType :: Node a -> Int
 nodeType (Node _ (t, _)) = t
+
+edgeType :: Edge a -> Int
+edgeType (Edge _ _ (t, _)) = t
 
 findNodeType :: Int -> TypedDigraph a b -> Maybe Int
 findNodeType id td@(TypedDigraph (Digraph nm em) _) =
