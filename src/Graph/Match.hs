@@ -29,6 +29,10 @@ type Condition a b =
 	-> Morphism a b
 	-> Bool
 
+edgeTypeCond :: Condition a b
+edgeTypeCond l le g ge m =
+	edgeType le == edgeType ge
+
 {- | checks if 'le' and 'ge' have source nodes from same type -}
 srcTypeCond :: Condition a b
 srcTypeCond l le g ge m =
@@ -92,7 +96,7 @@ loopCond l le g ge m =
 		then gsrc == gtar
 		else True
 
-conditionList = [srcTypeCond, tarTypeCond, srcIDCond, tarIDCond, loopCond]
+conditionList = [edgeTypeCond, srcTypeCond, tarTypeCond, srcIDCond, tarIDCond, loopCond]
 
 {- | if all conditions in 'cl' get satisfied by the given edge 'ge', returns the
 'm' Morphism with the new source/target pairs added. 
