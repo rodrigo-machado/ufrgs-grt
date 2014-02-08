@@ -8,12 +8,11 @@ module Graph.Match
 import Control.Monad -- foldM
 import Data.Maybe
 import Graph.Digraph
-import Graph.TypedDigraph
 import qualified Data.IntMap as IM
 import qualified Data.List as L
 
 
-findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism (TypeInfo a) b]
+findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
 findMatches l g = 
 	let matches = matchEdges l g 
 	in matches >>= \m -> (matchRemNodes l g m)
@@ -27,7 +26,7 @@ type Condition a b =
 	-> Edge b 
 	-> TypedDigraph a b
 	-> Edge b
-	-> Morphism (TypeInfo a) b
+	-> Morphism a b
 	-> Bool
 
 {- | checks if 'le' and 'ge' have source nodes from same type -}
@@ -104,8 +103,8 @@ satisfiesCond
 	-> Edge b
 	-> TypedDigraph a b
 	-> Edge b
-	-> Morphism (TypeInfo a) b
-	-> Maybe (Morphism (TypeInfo a) b)
+	-> Morphism a b
+	-> Maybe (Morphism a b)
 satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
@@ -124,8 +123,8 @@ applyCond
 	:: [Edge b]
 	-> TypedDigraph a b
 	-> TypedDigraph a b
-	-> Morphism (TypeInfo a) b
-	-> [Morphism (TypeInfo a) b]
+	-> Morphism a b
+	-> [Morphism a b]
 applyCond (le:les) l@(TypedDigraph dl tl) g@(TypedDigraph dg _) m =
 	let candidates = mapMaybe 
 		(\ge -> satisfiesCond conditionList l le g ge m) $ edges dg
@@ -141,8 +140,8 @@ applyCondMult
 	:: [Edge b]
 	-> TypedDigraph a b
 	-> TypedDigraph a b
-	-> [Morphism (TypeInfo a) b]
-	-> [Morphism (TypeInfo a) b]
+	-> [Morphism a b]
+	-> [Morphism a b]
 applyCondMult les l@(TypedDigraph d _) g ml =
 	case les of
 		[] -> ml
@@ -150,17 +149,17 @@ applyCondMult les l@(TypedDigraph d _) g ml =
 
 {- | given to TypedDigraph's, returns a list of all possible morphisms
 considering only the subgraph's inducted by the edges -}
-matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism (TypeInfo a) b]
+matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
 matchEdges l@(TypedDigraph dg _) g =
 	applyCondMult (edges dg) l g [Morphism [] []]
 
 {- | given a Morphism and two lists of nodes, add's NodeActions where the nodes
 are sequencially taken from the lists -}
 addNodeMatch
-	:: Maybe (Morphism (TypeInfo a) b)
-	-> [Node (TypeInfo a)]
-	-> [Node (TypeInfo a)]
-	-> Maybe (Morphism (TypeInfo a) b)
+	:: Maybe (Morphism a b)
+	-> [Node a]
+	-> [Node a]
+	-> Maybe (Morphism a b)
 addNodeMatch m [] _ = m
 addNodeMatch m _ [] = Nothing
 addNodeMatch Nothing _ _ = Nothing
@@ -174,10 +173,10 @@ each corresponding of a unique combination of all nodes from both lists and
 without repetition
 -}
 addNodeMatches
-	:: [Node (TypeInfo a)]
-	-> [Node (TypeInfo a)]
-	-> Morphism (TypeInfo a) b
-	-> [Morphism (TypeInfo a) b]
+	:: [Node a]
+	-> [Node a]
+	-> Morphism a b
+	-> [Morphism a b]
 addNodeMatches xs ys m =
 	mapMaybe (addNodeMatch (Just m) xs) $ L.permutations ys
 	
@@ -187,8 +186,8 @@ in 'm' -}
 matchRemNodes
 	:: TypedDigraph a b
 	-> TypedDigraph a b
-	-> Morphism (TypeInfo a) b
-	-> [Morphism (TypeInfo a) b]
+	-> Morphism a b
+	-> [Morphism a b]
 matchRemNodes
 	l@(TypedDigraph dl _)
 	g@(TypedDigraph dg _)
