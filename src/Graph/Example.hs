@@ -34,6 +34,7 @@ ge = 	[ D.Edge 15 (10, 11) (1, "a -> b")
 	, D.Edge 16 (10, 12) (1, "a -> c")
 	, D.Edge 17 (12, 13) (1, "c -> d")
 	, D.Edge 18 (14, 14) (2, "e -> e")
+	, D.Edge 19 (10, 12) (2, "a -> c")
 	]
 g1 = foldM (\d n -> D.addNode n d) g gn :: Maybe (D.Digraph String String)
 g2 = g1 >>=
