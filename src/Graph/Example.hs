@@ -12,9 +12,9 @@ ln = 	[ D.Node 1 (1, "1")
 	, D.Node 4 (1, "4")
 	, D.Node 5 (2, "5")
 	]
-le = 	[ D.Edge 4 (2, 1) "2 -> 1"
-	, D.Edge 5 (1, 3) "1 -> 3"
-	, D.Edge 6 (4, 4) "4 -> 4"
+le = 	[ D.Edge 4 (2, 1) (1, "2 -> 1")
+	, D.Edge 5 (1, 3) (1, "1 -> 3")
+	, D.Edge 6 (4, 4) (2, "4 -> 4")
 	]
 
 l1 = foldM (\d n -> D.addNode n d) l ln :: Maybe (D.Digraph String String)
@@ -30,10 +30,10 @@ gn = 	[ D.Node 10 (1, "a")
 	, D.Node 15 (2, "f")
 	, D.Node 16 (2, "g")
 	]
-ge = 	[ D.Edge 15 (10, 11) "a -> b"
-	, D.Edge 16 (10, 12) "a -> c"
-	, D.Edge 17 (12, 13) "c -> d"
-	, D.Edge 18 (14, 14) "e -> e"
+ge = 	[ D.Edge 15 (10, 11) (1, "a -> b")
+	, D.Edge 16 (10, 12) (1, "a -> c")
+	, D.Edge 17 (12, 13) (1, "c -> d")
+	, D.Edge 18 (14, 14) (2, "e -> e")
 	]
 g1 = foldM (\d n -> D.addNode n d) g gn :: Maybe (D.Digraph String String)
 g2 = g1 >>=
