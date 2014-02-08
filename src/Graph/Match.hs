@@ -15,7 +15,7 @@ import qualified Data.List as L
 findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
 findMatches l g = 
 	let matches = matchEdges l g 
-	in matches >>= \m -> (matchRemNodes l g m)
+	in matches >>= \m -> (matchNodes l g m)
 
 	
 {- | A Condition consists of a function that, given a Morphism 'm', two
@@ -120,7 +120,7 @@ satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 		
 
 {- | given a Condition list, a Morphism 'm', two Graphs 'l', 'g' and an Edge
-'le', searches for all edges from graph 'g' that satisfies the conditions in
+'le', searches for all edges from graph 'g' that satisfy the conditions in
 this context.  Returns a list of Morphisms, each with the new possibility added
 -}
 applyCond
@@ -129,16 +129,18 @@ applyCond
 	-> TypedDigraph a b
 	-> Morphism a b
 	-> [Morphism a b]
-applyCond (le:les) l@(TypedDigraph dl tl) g@(TypedDigraph dg _) m =
+applyCond (le:les) l g@(TypedDigraph dg _) m =
 	let candidates = mapMaybe 
 		(\ge -> satisfiesCond conditionList l le g ge m) $ edges dg
 	    newMorphisms = foldr (\c acc -> c : acc) [] candidates
 	in applyCondMult 
 		les
-		(TypedDigraph dl tl)
+		l
 		g
 		newMorphisms
 
+{- | given a list of Edges in graph 'l' and a list of partial morphisms, 
+returns all possible morphisms with these Edges mapped -}
 applyCondMult
 	:: [Edge b]
 	-> TypedDigraph a b
@@ -156,53 +158,33 @@ matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
 matchEdges l@(TypedDigraph dg _) g =
 	applyCondMult (edges dg) l g [Morphism [] []]
 
-{- | given a Morphism and two lists of nodes, add's NodeActions where the nodes
-are sequencially taken from the lists -}
 addNodeMatch
-	:: Maybe (Morphism a b)
-	-> [Node a]
-	-> [Node a]
-	-> Maybe (Morphism a b)
-addNodeMatch m [] _ = m
-addNodeMatch m _ [] = Nothing
-addNodeMatch Nothing _ _ = Nothing
-addNodeMatch (Just m) (x:xs) (y:ys) =
-	if nodeType x == nodeType y
-		then addNodeMatch (Just $ addNodeAction x y m) xs ys
-		else Nothing
-
-{- | given two lists of nodes and a morphism, returns a list of all morphisms,
-each corresponding of a unique combination of all nodes from both lists and
-without repetition
--}
-addNodeMatches
 	:: [Node a]
-	-> [Node a]
-	-> Morphism a b
-	-> [Morphism a b]
-addNodeMatches xs ys m =
-	mapMaybe (addNodeMatch (Just m) xs) $ L.permutations ys
-	
-{- | Creates a lists of morphisms, each adding to the given Morphism 'm' a
-unique combination of the matches considering the nodes not already contained
-in 'm' -}
-matchRemNodes
-	:: TypedDigraph a b
 	-> TypedDigraph a b
 	-> Morphism a b
 	-> [Morphism a b]
-matchRemNodes
-	l@(TypedDigraph dl _)
-	g@(TypedDigraph dg _)
-	m@(Morphism nal _) =
+addNodeMatch (ln:lns) g@(TypedDigraph dg _) m =
+	let ltype = nodeType ln
+	    candidates = filter (\n -> nodeType n == ltype) $ nodes dg
+	    newMorphisms = fmap (\c -> addNodeAction ln c m) candidates
+	in addNodeMatches
+		lns
+		g
+		newMorphisms
+		
+addNodeMatches
+	:: [Node a]
+	-> TypedDigraph a b
+	-> [Morphism a b]
+	-> [Morphism a b]
+addNodeMatches lns g ml =
+	case lns of
+		[] -> ml
+		otherwise -> ml >>= \m -> addNodeMatch lns g m
+
+matchNodes :: TypedDigraph a b -> TypedDigraph a b -> Morphism a b -> [Morphism a b]
+matchNodes l@(TypedDigraph dl _) g m@(Morphism nal _) =
 	let lnl = nodes dl
-	    gnl = nodes dg
 	    mlnl = foldr (\(Just ln, _) acc -> ln : acc) [] nal
-	    mgnl = foldr (\(_, Just gn) acc -> gn : acc) [] nal
-	    rlnl = L.deleteFirstsBy
-		(\x y -> nodeID x == nodeID y) lnl mlnl
-	    rgnl = L.deleteFirstsBy
-		(\x y -> nodeID x == nodeID y) gnl mgnl
-	in addNodeMatches rlnl rgnl m
-
-
+	    rlnl = lnl L.\\ mlnl
+	in addNodeMatch rlnl g m
