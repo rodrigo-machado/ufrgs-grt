@@ -100,7 +100,7 @@ conditionList = [edgeTypeCond, srcTypeCond, tarTypeCond, srcIDCond, tarIDCond, l
 {- | if all conditions in 'cl' get satisfied by the given edge 'ge', returns the
 'm' Morphism with the new source/target pairs added. 
 -}
-satisfiesCond
+processEdges
 	:: [Condition a b]
 	-> TypedDigraph a b
 	-> Edge b
@@ -108,7 +108,7 @@ satisfiesCond
 	-> Edge b
 	-> Morphism a b
 	-> Maybe (Morphism a b)
-satisfiesCond cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
+processEdges cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
 		addNodeAction (target le ld) (target ge gd)
@@ -129,9 +129,8 @@ applyCond
 	-> Morphism a b
 	-> [Morphism a b]
 applyCond (le:les) l g@(TypedDigraph dg _) m =
-	let candidates = mapMaybe 
-		(\ge -> satisfiesCond conditionList l le g ge m) $ edges dg
-	    newMorphisms = foldr (\c acc -> c : acc) [] candidates
+	let newMorphisms = mapMaybe 
+		(\ge -> processEdges conditionList l le g ge m) $ edges dg
 	in applyCondMult 
 		les
 		l
