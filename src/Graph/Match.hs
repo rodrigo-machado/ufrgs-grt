@@ -169,7 +169,9 @@ addNodeMatch (ln:lns) g@(TypedDigraph dg _) m =
 		lns
 		g
 		newMorphisms
-		
+
+addNodeMatch [] _ m = return m
+
 addNodeMatches
 	:: [Node a]
 	-> TypedDigraph a b
