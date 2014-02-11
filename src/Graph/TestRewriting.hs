@@ -2,6 +2,7 @@ module Graph.TestRewriting where
 
 import Data.Maybe
 
+import Graph.Match
 import Graph.Rewriting
 import Graph.Digraph
 
@@ -17,6 +18,9 @@ instance Monad Error where
 instance (Show r) => Show (Error r) where
 	show (OK x) = show x
 	show (Err msg) = unwords ["err:", msg]
+
+rewriteOnError :: (Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [Error (TypedDigraph a b)]
+rewriteOnError = rewrite
 
 typeInfo t = (t, ())
 

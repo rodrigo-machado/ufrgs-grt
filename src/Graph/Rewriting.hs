@@ -2,20 +2,33 @@ module Graph.Rewriting where
 
 import Data.Maybe
 import Data.List
-import Data.IntMap (IntMap,keys)
+import Data.IntMap (IntMap,keys,fromList)
 
 import Graph.Digraph
+import Graph.Match (findMatches)
 
 import Control.Monad
-import Control.Arrow
+import Control.Arrow hiding (left)
 
 type Rule a b = Morphism a b
 
-findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
-findMatches = undefined
+left :: (Eq a, Eq b) => Rule a b -> TGraph a b -> TypedDigraph a b
+left (Morphism nr er) t = flip TypedDigraph t $  Digraph (fromList . toNodeKeyPair $ left' nr) (fromList . toEdgeKeyPair $ left' er)
+	where
+		left' :: Eq a => [(Maybe a, Maybe a)] -> [a]
+		left' = map (fromJust . fst) . filter (\e -> fst e /= Nothing)
+		toNodeKeyPair = map (\n -> (nodeID n, n))
+		toEdgeKeyPair = map (\e -> (edgeID e, e))
 
-rewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> Morphism a b -> m (TypedDigraph a b)
-rewrite rule tGraph@(TypedDigraph graph types) match = applyTypedMorphism (rename ns es rule match) tGraph
+rewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [m (TypedDigraph a b)]
+rewrite rule@(Morphism nr er) graph = liftM (doRewrite rule graph) $ findMatches alpha graph
+	where
+		tGraph (TypedDigraph g t) = t
+		alpha = left rule $ tGraph graph
+
+
+doRewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> Morphism a b -> m (TypedDigraph a b)
+doRewrite rule tGraph@(TypedDigraph graph types) match = applyTypedMorphism (rename ns es rule match) tGraph
 	where
 		keyList :: IntMap a -> [Int]
 		keyList = keys
