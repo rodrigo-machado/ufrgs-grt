@@ -17,11 +17,14 @@ module Graph.Digraph
 	, source
 	, target
 	, nodeID
+	, edgeID
 	, sourceID
 	, targetID
 	, addNodeAction 
 	, addEdgeAction 
+	, applyActions
 	, applyMorphism
+	, applyTypedMorphism
 	, TypedDigraph (..)
 	, TGraph
 	, nodeType
@@ -127,6 +130,9 @@ target e d =
 nodeID :: Node a -> Int
 nodeID (Node id _) = id
 
+edgeID :: Edge a -> Int
+edgeID (Edge id _ _) = id
+
 sourceID :: Edge b -> Int
 sourceID (Edge _ (src, _) _) = src
 
@@ -214,11 +220,16 @@ actionSet (Morphism na ea) = let
 	aeSet = edgeActions addAction ea
 	dnSet = nodeActions removeAction na
 	deSet = edgeActions removeAction ea
-	in deSet ++ dnSet ++ anSet ++ aeSet ++ knSet ++ keSet
+	in deSet ++ dnSet ++ knSet ++ keSet ++ anSet ++ aeSet
 
+applyActions :: Monad m => a -> [a -> m a] -> m a
+applyActions = foldM (\g f -> f g)
 
 applyMorphism :: (Monad m, Eq a, Eq b) => Morphism a b -> Digraph a b -> m (Digraph a b)
-applyMorphism m g = foldM (\g f -> f g) g $ actionSet m
+applyMorphism m g = applyActions g $ actionSet m
+
+applyTypedMorphism :: (Monad m, Eq a, Eq b) => Morphism a b -> TypedDigraph a b -> m (TypedDigraph a b)
+applyTypedMorphism m (TypedDigraph g t) = liftM (flip TypedDigraph t) $ applyMorphism m g
 
 nodeType :: Node a -> Int
 nodeType (Node _ (t, _)) = t
@@ -240,3 +251,5 @@ srcType (Edge _ (s, _) _) l =
 tarType :: Edge b -> TypedDigraph a b -> Maybe Int
 tarType (Edge _ (_, t) _) l =
 	findNodeType t l
+
+
