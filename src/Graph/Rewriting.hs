@@ -36,10 +36,10 @@ doRewrite rule tGraph@(TypedDigraph graph types) match = applyTypedMorphism (ren
 		es = 1 + (maximum $ map edgeID $ edges graph)
 
 renameNode :: [(Int, Int)] -> Node a -> Node a
-renameNode namemap (Node id x) = Node (fromJust $ lookup id namemap) x
+renameNode namemap (Node id t p) = Node (fromJust $ lookup id namemap) t p
 
-renameEdge nnamemap enamemap (Edge id x y) = Edge (fromJust $ lookup id enamemap) 
-	(double (fromJust . flip lookup nnamemap) x) y
+renameEdge nnamemap enamemap (Edge id st t p) = Edge (fromJust $ lookup id enamemap) 
+	(double (fromJust . flip lookup nnamemap) st) t p
 
 -- | Applies f to both elements in a tuple
 double :: (a -> b) -> (a, a) -> (b, b)

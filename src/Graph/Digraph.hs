@@ -40,21 +40,21 @@ import qualified Data.IntMap	as IM
 import qualified Data.List	as L
 
 
--- Edge idE (idSrc, idTgt) payload
-data Edge a = Edge Int (Int, Int) (Int, a) deriving (Show, Read)
+-- Edge idE (idSrc, idTgt) t payload
+data Edge a = Edge Int (Int, Int) Int a deriving (Show, Read)
 instance Eq (Edge a) where
-	Edge lid _ _ == Edge gid _ _ = lid == gid
+	Edge lid _ _ _ == Edge gid _ _ _ = lid == gid
 
--- Node idN payload
-data Node a = Node Int (Int, a) deriving (Show, Read)
+-- Node idN t payload
+data Node a = Node Int Int a deriving (Show, Read)
 instance Eq (Node a) where
-	Node lid _ == Node gid _ = lid == gid
+	Node lid _ _ == Node gid _ _ = lid == gid
 	
 
-data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show)
+data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show, Read)
 
 data TypedDigraph a b = TypedDigraph (Digraph a b) (TGraph a b)
-	deriving (Show)
+	deriving (Show, Read)
 
 type TGraph a b = Digraph a b
 
@@ -62,13 +62,13 @@ empty :: Digraph a b
 empty = Digraph (IM.empty) (IM.empty)
 
 addNode :: (Monad m) => Node a -> Digraph a b -> m (Digraph a b)
-addNode n@(Node id _) g@(Digraph nm em) =
+addNode n@(Node id _ _) g@(Digraph nm em) =
 	if id `IM.member` nm 
 		then fail $ "addNode: node " ++ show id ++ " already in digraph"
 		else return $ Digraph (IM.insert id n nm) em
 
 addEdge :: (Monad m) => Edge b -> Digraph a b -> m (Digraph a b)
-addEdge e@(Edge id (s, t) _) g@(Digraph nm em)
+addEdge e@(Edge id (s, t) _ _) g@(Digraph nm em)
 	| id `IM.member` em = 
 		fail $ "addEdge: edge " ++ show id ++ " already in digraph"
 	| s `IM.member` nm && t `IM.member` nm =
@@ -77,30 +77,30 @@ addEdge e@(Edge id (s, t) _) g@(Digraph nm em)
 		fail $ "addEdge: edge points to nodes not found in digraph"
 
 removeNode :: (Monad m) => Node a -> Digraph a b -> m (Digraph a b)
-removeNode n@(Node id _) g@(Digraph nm em)
+removeNode n@(Node id _ _) g@(Digraph nm em)
 	| id `IM.notMember` nm =
 		fail $ "removeNode: node " ++ show id ++ " not in digraph"
 	| IM.fold 
-		(\(Edge eid (s, t) _) acc -> acc || s == id || t == id) 
+		(\(Edge eid (s, t) _ _) acc -> acc || s == id || t == id) 
 		False em =
 		fail $ "removeNode: node " ++ show id ++ " has some edge pointing to it"
 	| otherwise =
 		return $ Digraph (IM.delete id nm) em
 
 removeEdge :: (Monad m) => Edge b -> Digraph a b -> m (Digraph a b)
-removeEdge e@(Edge id _ _) g@(Digraph nm em) =
+removeEdge e@(Edge id _ _ _) g@(Digraph nm em) =
 	if id `IM.member` em 
 		then return $ Digraph nm (IM.delete id em)
 		else fail $ "removeEdge: edge " ++ show id ++ " not in digraph"
 
 keepNode :: (Monad m) => Node a -> Digraph a b -> m (Digraph a b)
-keepNode (Node nid _) g@(Digraph ns es) = 
+keepNode (Node nid _ _) g@(Digraph ns es) = 
 	if nid `IM.member` ns
 		then return g
 		else fail $ "keepNode: node " ++ show nid ++ " doesn't exist"
 
 keepEdge :: (Monad m) => Edge b -> Digraph a b -> m (Digraph a b)
-keepEdge (Edge eid _ _) g@(Digraph ns es) = 
+keepEdge (Edge eid _ _ _) g@(Digraph ns es) = 
 	if eid `IM.member` es
 		then return g
 		else fail $ "keepEdge: edge " ++ show eid ++ " doesn't exist"
@@ -128,16 +128,16 @@ target e d =
 	in n
 
 nodeID :: Node a -> Int
-nodeID (Node id _) = id
+nodeID (Node id _ _) = id
 
 edgeID :: Edge a -> Int
-edgeID (Edge id _ _) = id
+edgeID (Edge id _ _ _) = id
 
 sourceID :: Edge b -> Int
-sourceID (Edge _ (src, _) _) = src
+sourceID (Edge _ (src, _) _ _) = src
 
 targetID :: Edge b -> Int
-targetID (Edge _ (_, tar) _) = tar
+targetID (Edge _ (_, tar) _ _) = tar
 
 ----------------------------------------------------------------------------
 -- | Morphism related functions
@@ -157,18 +157,18 @@ instance (Show a, Show b) => Show (Morphism a b) where
 showNodeAction :: (Show a) => NodeAction a -> String
 showNodeAction na = case na of
 	(Nothing, Nothing) -> "__ ==> __\n"
-	(Just (Node id _), Nothing)-> show id ++ " ==> __\n"
-	(Nothing, Just (Node id _)) -> show id ++ " ==> __\n"
-	(Just (Node lid _), Just (Node gid _))
+	(Just (Node id _ _), Nothing)-> show id ++ " ==> __\n"
+	(Nothing, Just (Node id _ _)) -> show id ++ " ==> __\n"
+	(Just (Node lid _ _), Just (Node gid _ _))
 		-> show lid ++ " ==> " ++ show gid ++ "\n"
 
 showEdgeAction :: (Show a) => EdgeAction a -> String
 showEdgeAction na = case na of
 	(Nothing, Nothing) -> "__ ==> __"
-	(Just (Edge _ _ p), Nothing)-> show p ++ " ==> __"
-	(Nothing, Just (Edge _ _ p)) -> show p ++ " __ ==> p"
-	(Just (Edge _ _ lp), Just (Edge _ _ gp))
-		-> show lp ++ " ==> " ++ show gp ++ "\n"
+	(Just (Edge _ _ t p), Nothing)-> show (t, p) ++ " ==> __"
+	(Nothing, Just (Edge _ _ t p)) -> show (t, p) ++ " __ ==> p"
+	(Just (Edge _ _ lt lp), Just (Edge _ _ gt gp))
+		-> show (lt, lp) ++ " ==> " ++ show (gt, gp) ++ "\n"
 
 
 -- | Checks if NodeAction already exists. If so, adds it. Otherwise, returns
@@ -232,24 +232,24 @@ applyTypedMorphism :: (Monad m, Eq a, Eq b) => Morphism a b -> TypedDigraph a b 
 applyTypedMorphism m (TypedDigraph g t) = liftM (flip TypedDigraph t) $ applyMorphism m g
 
 nodeType :: Node a -> Int
-nodeType (Node _ (t, _)) = t
+nodeType (Node _ t _) = t
 
 edgeType :: Edge a -> Int
-edgeType (Edge _ _ (t, _)) = t
+edgeType (Edge _ _ t _) = t
 
 findNodeType :: Int -> TypedDigraph a b -> Maybe Int
 findNodeType id td@(TypedDigraph (Digraph nm em) _) =
 	let n = IM.lookup id nm
 	in case n of
 		Nothing -> Nothing
-		Just (Node _ (tid, _)) -> Just tid
+		Just (Node _ tid _) -> Just tid
 
 srcType :: Edge b -> TypedDigraph a b -> Maybe Int
-srcType (Edge _ (s, _) _) l =
+srcType (Edge _ (s, _) _ _) l =
 	findNodeType s l
 
 tarType :: Edge b -> TypedDigraph a b -> Maybe Int
-tarType (Edge _ (_, t) _) l =
+tarType (Edge _ (_, t) _ _) l =
 	findNodeType t l
 
 

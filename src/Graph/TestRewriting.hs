@@ -22,22 +22,20 @@ instance (Show r) => Show (Error r) where
 rewriteOnError :: (Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [Error (TypedDigraph a b)]
 rewriteOnError = rewrite
 
-typeInfo t = (t, ())
-
-tGraph = fromJust $ applyActions empty	[ addNode $ Node 1 $ typeInfo 0
-											, addNode $ Node 2 $ typeInfo 0
-											, addEdge $ Edge 1 (1, 2) $ typeInfo 0
-											, addEdge $ Edge 2 (2, 1) $ typeInfo 0
-											, addEdge $ Edge 3 (1, 1) $ typeInfo 0
-											, addEdge $ Edge 4 (2, 2) $ typeInfo 0
+tGraph = fromJust $ applyActions empty	[ addNode $ Node 1 0 ()
+											, addNode $ Node 2 0 ()
+											, addEdge $ Edge 1 (1, 2) 0 ()
+											, addEdge $ Edge 2 (2, 1) 0 ()
+											, addEdge $ Edge 3 (1, 1) 0 ()
+											, addEdge $ Edge 4 (2, 2) 0 ()
 											]
 
-nb0 = Node 0 $ typeInfo 1
-nb1 = Node 1 $ typeInfo 1
-nb2 = Node 2 $ typeInfo 2
-nb3 = Node 3 $ typeInfo 1
-eb1 = Edge 1 (1, 2) $ typeInfo 1
-eb2 = Edge 2 (2, 3) $ typeInfo 2
+nb0 = Node 0 1 ()
+nb1 = Node 1 1 ()
+nb2 = Node 2 2 ()
+nb3 = Node 3 1 ()
+eb1 = Edge 1 (1, 2) 1 ()
+eb2 = Edge 2 (2, 3) 2 ()
 
 beta = fromJust $ applyActions empty	[ addNode $ nb0
 										, addNode $ nb1
@@ -49,13 +47,13 @@ beta = fromJust $ applyActions empty	[ addNode $ nb0
 
 betat = TypedDigraph beta tGraph
 
-na1 = Node 1 $ typeInfo 1
-na2 = Node 2 $ typeInfo 2
-na3 = Node 3 $ typeInfo 1
-na4 = Node 4 $ typeInfo 1
-ea1 = Edge 1 (3, 2) $ typeInfo 1
-ea2 = Edge 2 (2, 1) $ typeInfo 2
-ea3 = Edge 3 (4, 1) $ typeInfo 3
+na1 = Node 1 1 ()
+na2 = Node 2 2 ()
+na3 = Node 3 1 ()
+na4 = Node 4 1 ()
+ea1 = Edge 1 (3, 2) 1 ()
+ea2 = Edge 2 (2, 1) 2 ()
+ea3 = Edge 3 (4, 1) 3 ()
 
 alpha = fromJust $ applyActions empty	[ addNode $ na1
 										, addNode $ na2
