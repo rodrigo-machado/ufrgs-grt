@@ -22,14 +22,17 @@ rewriteOnError :: (Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [Error (TypedD
 rewriteOnError = rewrite
 
 tGraph :: Monad m => GraphBuilder m (Int, Int, Int, Int, Int, Int)
-tGraph = do
-    n1 <- typeNode
-    n2 <- typeNode
-    e1 <- typeEdge (n1, n1)
-    e2 <- typeEdge (n2, n2)
-    e3 <- typeEdge (n1, n2)
-    e4 <- typeEdge (n2, n1)
-    return (n1, n2, e1, e2, e3, e4)
+tGraph = do n1 <- typeNode
+            n2 <- typeNode
+            e1 <- typeEdge (n1, n1)
+            e2 <- typeEdge (n2, n2)
+            e3 <- typeEdge (n1, n2)
+            e4 <- typeEdge (n2, n1)
+            return (n1, n2, e1, e2, e3, e4)
+
+alpha :: Monad m => m (TypedDigraph () ())
+alpha = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
+                        graphNode tn2
 
 beta :: Monad m => m (TypedDigraph () ())
 beta = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
@@ -38,6 +41,11 @@ beta = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
                        n3 <- graphNode tn1
                        n4 <- graphNode tn2
                        e1 <- graphEdge te1 (n1, n3)
-                       -- etc.
                        return ()
 
+rule1 :: Monad m => m (Rule () ())
+rule1 = alpha >>= flip buildRule (deleteNode 0)
+
+rewriteBeta = do b <- beta
+                 r <- rule1
+                 rewriteOnError r b
