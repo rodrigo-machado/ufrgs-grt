@@ -5,6 +5,8 @@ module Graph.Digraph
 	, Morphism (..)
 	, EdgeAction (..)
 	, empty
+	, node
+	, edge
 	, addNode
 	, addEdge
 	, removeNode
@@ -60,6 +62,12 @@ type TGraph a b = Digraph a b
 
 empty :: Digraph a b
 empty = Digraph (IM.empty) (IM.empty)
+
+node :: Int -> Digraph a b -> Maybe (Node a)
+node i (Digraph n _) = IM.lookup i n
+
+edge :: Int -> Digraph a b -> Maybe (Edge b)
+edge i (Digraph _ e) = IM.lookup i e
 
 addNode :: (Monad m) => Node a -> Digraph a b -> m (Digraph a b)
 addNode n@(Node id _ _) g@(Digraph nm em) =
