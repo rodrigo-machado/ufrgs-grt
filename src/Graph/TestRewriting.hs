@@ -4,6 +4,8 @@ import Control.Monad.State
 
 import Data.Maybe
 
+import Assorted.PrettyPrint
+
 import Graph.Match
 import Graph.Rewriting
 import Graph.Digraph
@@ -18,8 +20,15 @@ instance Monad Error where
     (OK x) >>= f = (f x)
     fail = Err
 
+instance PrettyPrint a => PrettyPrint (Error a) where
+    prettyPrint (OK v) = prettyPrint v
+    prettyPrint (Err m) = m
+
 rewriteOnError :: (Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [Error (TypedDigraph a b)]
 rewriteOnError = rewrite
+
+rewriteAllOnError :: (Eq a, Eq b) => [Rule a b] -> TypedDigraph a b -> [Error (TypedDigraph a b)]
+rewriteAllOnError = rewriteAll
 
 tGraph :: Monad m => GraphBuilder m (Int, Int, Int, Int, Int, Int)
 tGraph = do n1 <- typeNode
@@ -32,19 +41,25 @@ tGraph = do n1 <- typeNode
 
 alpha :: Monad m => m (TypedDigraph () ())
 alpha = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
-                        graphNode tn2
+                        graphNode tn1
 
 beta :: Monad m => m (TypedDigraph () ())
 beta = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
                        n1 <- graphNode tn1
-                       n2 <- graphNode tn2
+                       n2 <- graphNode tn1
                        n3 <- graphNode tn1
-                       n4 <- graphNode tn2
+                       n4 <- graphNode tn1
                        e1 <- graphEdge te1 (n1, n3)
                        return ()
 
 rule1 :: Monad m => m (Rule () ())
 rule1 = alpha >>= flip buildRule (deleteNode 0)
+
+rule2 :: Monad m => m (Rule () ())
+rule2 = alpha >>= flip buildRule (createNode 0)
+
+rules :: Monad m => m [Rule () ()]
+rules = sequence [rule1, rule2]
 
 rewriteBeta = do b <- beta
                  r <- rule1

@@ -1,4 +1,7 @@
-module Graph.Rewriting where
+module Graph.Rewriting ( Rule
+                       , rewrite
+                       , rewriteAll
+                       ) where
 
 import Data.Maybe
 import Data.List
@@ -13,7 +16,7 @@ import Control.Arrow hiding (left)
 type Rule a b = Morphism a b
 
 left :: (Eq a, Eq b) => Rule a b -> TGraph a b -> TypedDigraph a b
-left (Morphism nr er) t = flip TypedDigraph t $  Digraph (fromList . toNodeKeyPair $ left' nr) (fromList . toEdgeKeyPair $ left' er)
+left (Morphism nr er) t = flip TypedDigraph t $ Digraph (fromList . toNodeKeyPair $ left' nr) (fromList . toEdgeKeyPair $ left' er)
 	where
 		left' :: Eq a => [(Maybe a, Maybe a)] -> [a]
 		left' = map (fromJust . fst) . filter (\e -> fst e /= Nothing)
@@ -25,6 +28,9 @@ rewrite rule@(Morphism nr er) graph = liftM (doRewrite rule graph) $ findMatches
 	where
 		tGraph (TypedDigraph g t) = t
 		alpha = left rule $ tGraph graph
+
+rewriteAll :: (Monad m, Eq a, Eq b) => [Rule a b] -> TypedDigraph a b -> [m (TypedDigraph a b)]
+rewriteAll rs g = concat $ map (flip rewrite g) rs
 
 
 doRewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> Morphism a b -> m (TypedDigraph a b)

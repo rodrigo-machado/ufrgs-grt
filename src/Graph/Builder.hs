@@ -21,7 +21,9 @@ import Prelude hiding (null,lookup,member)
 
 import Control.Monad.State
 
-import Data.IntMap hiding (empty)
+import Data.IntMap hiding (empty,map,filter,(\\))
+import Data.Maybe
+import Data.List hiding (lookup,null)
 
 import Graph.Digraph
 import Graph.Rewriting
@@ -45,14 +47,14 @@ nextId m = if null m then 0 else 1 + fst (findMax m)
 typeNode :: (Monad m) => GraphBuilder m Int
 typeNode = do (TypedDigraph g t@(Digraph n e)) <- get
               let k = nextId n
-              t' <- addNode (Node k 0 ()) t
+              t' <- addNode (Node k k ()) t
               put $ TypedDigraph g t'
               return k
 
 typeEdge :: Monad m => (Int, Int) -> GraphBuilder m Int
 typeEdge c = do (TypedDigraph g t@(Digraph n e)) <- get
                 let k = nextId e
-                t' <- flip addEdge t $ Edge k c 0 ()
+                t' <- flip addEdge t $ Edge k c k ()
                 put $ TypedDigraph g t'
                 return k
 
@@ -109,7 +111,7 @@ type RuleBuilder = StateT (UnitRule, UnitGraph)
 -- Must also create keep rules for all nodes and edges that are not
 -- created or deleted
 buildRuleFrom :: Monad m => UnitRule -> UnitGraph -> RuleBuilder m a -> m UnitRule
-buildRuleFrom r g = liftM (fst . snd) . flip runStateT (r, g)
+buildRuleFrom r g rb = liftM (fst . snd) $ runStateT (keepUnmapped rb) (r, g)
 
 buildRule :: Monad m => UnitGraph -> RuleBuilder m a -> m UnitRule
 buildRule g = buildRuleFrom (Morphism [] []) g
@@ -159,3 +161,21 @@ deleteEdge i = do (r, g) <- get
                   let r' = (Just e', Nothing)
                   put (Morphism nr (r':er), g)
                   return ()
+
+keepUnmapped :: Monad m => RuleBuilder m a -> RuleBuilder m ()
+keepUnmapped rb = do rb
+                     (r, g) <- get
+                     let (TypedDigraph g' t) = g
+                         (Digraph n e) = g'
+                         (Morphism nr er) = r
+                         rNodeIDs = map (nodeID . fromJust . fst) $ filter ((/=Nothing) . fst) nr
+                         rEdgeIDs = map (edgeID . fromJust . fst) $ filter ((/=Nothing) . fst) er
+                         kn = (keys n) \\ rNodeIDs
+                         ke = (keys e) \\ rEdgeIDs
+                         keepNode m x = (Just $ fromJust $ lookup x m, Just $ fromJust $ lookup x m)
+                         lift ks m = map (keepNode m) ks
+                         nrn = lift kn n ++ nr
+                         ern = lift ke e ++ er
+                     put $ (Morphism nrn ern, g)
+
+                     return ()

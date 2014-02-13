@@ -40,7 +40,7 @@ import Control.Monad
 import Data.IntMap (IntMap)
 import qualified Data.IntMap	as IM
 import qualified Data.List	as L
-
+import Assorted.PrettyPrint
 
 -- Edge idE (idSrc, idTgt) t payload
 data Edge a = Edge Int (Int, Int) Int a deriving (Show, Read)
@@ -52,11 +52,26 @@ data Node a = Node Int Int a deriving (Show, Read)
 instance Eq (Node a) where
 	Node lid _ _ == Node gid _ _ = lid == gid
 	
+instance PrettyPrint a => PrettyPrint (Node a) where
+    prettyPrint (Node i t p) = concat [show i, "(", show t, ")"]
 
-data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show, Read)
+instance PrettyPrint a => PrettyPrint (Edge a) where
+    prettyPrint (Edge i (s, t) tp p) = concat [show s, "->", show t, " (", show tp, ")"]
+
+
+data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show, Read, Eq)
+
+instance PrettyPrint a => PrettyPrint (IntMap a) where
+    prettyPrint m = concat $ L.intersperse ", " $ IM.foldl (\s e -> prettyPrint e:s) [] m
+
+instance (PrettyPrint a, PrettyPrint b) => PrettyPrint (Digraph a b) where
+    prettyPrint (Digraph n e) = unlines [prettyPrint n, prettyPrint e]
+
+instance (PrettyPrint a, PrettyPrint b) => PrettyPrint (TypedDigraph a b) where
+    prettyPrint (TypedDigraph g t) = unlines ["Type", prettyPrint t, "Graph", prettyPrint g]
 
 data TypedDigraph a b = TypedDigraph (Digraph a b) (TGraph a b)
-	deriving (Show, Read)
+	deriving (Show, Read, Eq)
 
 type TGraph a b = Digraph a b
 
@@ -153,14 +168,14 @@ targetID (Edge _ (_, tar) _ _) = tar
 type NodeAction a = (Maybe (Node a), Maybe (Node a))
 type EdgeAction a = (Maybe (Edge a), Maybe (Edge a))
 
-data Morphism a b = Morphism [NodeAction a] [EdgeAction b]
-instance (Show a, Show b) => Show (Morphism a b) where
-	show (Morphism nal eal) = 
-		"\nNode mappings:\n"
-		++ (L.foldr (\s acc -> (showNodeAction s) ++ acc) [] nal)
-		++ "\nEdge mappings:\n"
-		++ (L.foldr (\s acc -> (showEdgeAction s) ++ acc) [] eal)
-		++ "\n"
+data Morphism a b = Morphism [NodeAction a] [EdgeAction b] deriving (Show,Read)
+
+showMorphism (Morphism nal eal) = 
+	"\nNode mappings:\n"
+	++ (L.foldr (\s acc -> (showNodeAction s) ++ acc) [] nal)
+	++ "\nEdge mappings:\n"
+	++ (L.foldr (\s acc -> (showEdgeAction s) ++ acc) [] eal)
+	++ "\n"
 
 showNodeAction :: (Show a) => NodeAction a -> String
 showNodeAction na = case na of
