@@ -139,4 +139,53 @@ This morphism allows to describe a span $L \overset{l}{\leftarrowtail} K \overse
 	\item $r$ are all pairs which the source if $\bot$ ($(\bot, t) \mid \bot \mapsto t$).
 \end{itemize}
 
+\section{Builders}
+Builders are monadic interfaces to building graphs and rules in a simpler way. Both are based in the \texttt{StateT} monad to provide the basic functionality. They are planned to be composable, inspired by parsec. The builders type signatures are
+
+\begin{verbatim}
+type GraphBuilder a b m c = StateT (TypedDigraph a b) m c
+type RuleBuilder a b m c = StateT (TypedDigraph a b, Rule a b) m c
+\end{verbatim}
+
+\subsection{Graph builder}
+The graph builder provides the following functions:
+\begin{verbatim}
+-- Element creation
+typeNode  :: Monad m => a -> GraphBuilder a b m Int
+typeEdge  :: Monad m => b -> (Int, Int) -> GraphBuilder a b m Int
+graphNode :: Monad m => a -> GraphBuilder a b m Int
+graphEdge :: Monad m => b -> (Int, Int) -> GraphBuilder a b m Int
+
+-- Element deletion
+deleteTypeNode  :: Monad m => Int -> GraphBuilder a b m ()
+deleteTypeEdge  :: Monad m => Int -> GraphBuilder a b m ()
+deleteGraphNode :: Monad m => Int -> GraphBuilder a b m ()
+deleteGraphEdge :: Monad m => Int -> GraphBuilder a b m ()
+\end{verbatim}
+
+A sample usage can be seen below.
+
+\begin{verbatim}
+tGraph :: Monad m => GraphBuilder m (Int, Int, Int, Int, Int, Int)
+tGraph = do n1 <- typeNode
+            n2 <- typeNode
+            e1 <- typeEdge (n1, n1)
+            e2 <- typeEdge (n2, n2)
+            e3 <- typeEdge (n1, n2)
+            e4 <- typeEdge (n2, n1)
+            return (n1, n2, e1, e2, e3, e4)
+
+beta :: Monad m => m (TypedDigraph () ())
+beta = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
+                       n1 <- graphNode tn1
+                       n2 <- graphNode tn2
+                       n3 <- graphNode tn1
+                       n4 <- graphNode tn2
+                       e1 <- graphEdge te1 (n1, n3)
+                       return ()
+\end{verbatim}
+
+\subsection{Rule builder}
+Similar to the graph builder.
+
 \end{document}
