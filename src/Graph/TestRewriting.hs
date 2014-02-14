@@ -30,33 +30,33 @@ rewriteOnError = rewrite
 rewriteAllOnError :: (Eq a, Eq b) => [Rule a b] -> TypedDigraph a b -> [Error (TypedDigraph a b)]
 rewriteAllOnError = rewriteAll
 
-tGraph :: Monad m => GraphBuilder m (Int, Int, Int, Int, Int, Int)
-tGraph = do n1 <- typeNode
-            n2 <- typeNode
-            e1 <- typeEdge (n1, n1)
-            e2 <- typeEdge (n2, n2)
-            e3 <- typeEdge (n1, n2)
-            e4 <- typeEdge (n2, n1)
+tGraph :: Monad m => GraphBuilder () () m (Int, Int, Int, Int, Int, Int)
+tGraph = do n1 <- typeNode ()
+            n2 <- typeNode ()
+            e1 <- typeEdge () (n1, n1)
+            e2 <- typeEdge () (n2, n2)
+            e3 <- typeEdge () (n1, n2)
+            e4 <- typeEdge () (n2, n1)
             return (n1, n2, e1, e2, e3, e4)
 
 alpha :: Monad m => m (TypedDigraph () ())
 alpha = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
-                        graphNode tn1
+                        graphNode () tn1
 
 beta :: Monad m => m (TypedDigraph () ())
 beta = buildGraph $ do (tn1, tn2, te1, te2, te3, te4) <- tGraph
-                       n1 <- graphNode tn1
-                       n2 <- graphNode tn1
-                       n3 <- graphNode tn1
-                       n4 <- graphNode tn1
-                       e1 <- graphEdge te1 (n1, n3)
+                       n1 <- graphNode () tn1
+                       n2 <- graphNode () tn1
+                       n3 <- graphNode () tn1
+                       n4 <- graphNode () tn1
+                       e1 <- graphEdge () te1 (n1, n3)
                        return ()
 
 rule1 :: Monad m => m (Rule () ())
 rule1 = alpha >>= flip buildRule (deleteNode 0)
 
 rule2 :: Monad m => m (Rule () ())
-rule2 = alpha >>= flip buildRule (createNode 0)
+rule2 = alpha >>= flip buildRule (createNode () 0)
 
 rules :: Monad m => m [Rule () ()]
 rules = sequence [rule1, rule2]
