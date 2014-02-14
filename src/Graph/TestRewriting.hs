@@ -15,7 +15,7 @@ import Graph.Builder
 data Error r = Err String | OK r deriving (Eq, Show)
 
 instance Monad Error where
-    return x = OK x
+    return = OK
     (Err y) >>= _ = Err y
     (OK x) >>= f = (f x)
     fail = Err
