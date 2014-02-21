@@ -1,0 +1,14 @@
+Digraph {
+	
+}
+
+Match {
+	Match -- type Match = [(Int, Int)]
+	findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Match]
+}
+
+Rewriting {
+	rewrite :: Rule -> Graph -> Match -> Graph
+}
+
+
