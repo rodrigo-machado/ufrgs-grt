@@ -49,7 +49,7 @@ defaultOptions = SystemOptions { stepsToStop = 1
 parseOptions :: MonadIO m => m (SystemOptions, [String])
 parseOptions = do args <- liftIO $ getArgs
                   case getOpt Permute options args of
-                      (o,n,[]) -> return (foldl (flip id) defaultOptions o, n)
+                      (o,(h:t),[]) -> return (foldl (flip id) defaultOptions o, (h:t))
                       (_,_,es) -> fail $ concat es ++ usageInfo header options
     where
         header = "Usage: main [args] file"
