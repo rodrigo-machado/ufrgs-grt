@@ -1,4 +1,4 @@
-module Graph.Builder {-( GraphBuilder
+module Graph.Builder ( GraphBuilder
                      , buildGraph
                      , buildGraphFrom
                      , typeNode
@@ -15,7 +15,7 @@ module Graph.Builder {-( GraphBuilder
                      , createEdge
                      , deleteNode
                      , deleteEdge
-                     )-} where
+                     ) where
 
 import Prelude hiding (null,lookup,member)
 
@@ -25,7 +25,7 @@ import Data.IntMap hiding (empty,map,filter,(\\))
 import Data.Maybe
 import Data.List hiding (lookup,null)
 
-import Graph.Digraph
+import Graph.Digraph hiding (nodes,edges)
 import Graph.Rewriting
 
 import Assorted.Maybe
@@ -38,30 +38,51 @@ buildGraph = buildGraphFrom (TypedDigraph empty empty)
 buildGraphFrom :: Monad m => TypedDigraph a b -> GraphBuilder a b m c -> m (TypedDigraph a b)
 buildGraphFrom g = liftM snd . flip runStateT g
 
+getType :: Monad m => GraphBuilder a b m (Digraph a b)
+getType = do { (TypedDigraph _ t) <- get; return t }
+
+getGraph :: Monad m => GraphBuilder a b m (Digraph a b)
+getGraph = do { (TypedDigraph g _) <- get; return g }
+
+putType :: Monad m => Digraph a b -> GraphBuilder a b m ()
+putType gt = do { gg <- getGraph; put $ TypedDigraph gg gt }
+
+putGraph :: Monad m => Digraph a b -> GraphBuilder a b m ()
+putGraph gg = do { gt <- getType; put $ TypedDigraph gg gt }
+
+nodes (Digraph g _) = g
+edges (Digraph _ e) = e
+
 nextId m = if null m then 0 else 1 + fst (findMax m)
+nextNodeId = nextId . nodes
+nextEdgeId = nextId . edges
+
+
+guardKey k m = unless (member k m) $ fail $ unwords ["Key", show k, "not in map"]
+guardHasNodeType i = guardKey i . nodes
+guardHasEdgeType i = guardKey i . edges
 
 typeNode :: (Monad m) => a -> GraphBuilder a b m Int
-typeNode p = do (TypedDigraph g t@(Digraph n e)) <- get
-                let k = nextId n
+typeNode p = do t <- getType
+                let k = nextNodeId t
                 t' <- addNode (Node k k p) t
-                put $ TypedDigraph g t'
+                putType t'
                 return k
 
 typeEdge :: Monad m => b -> (Int, Int) -> GraphBuilder a b m Int
-typeEdge p c = do (TypedDigraph g t@(Digraph n e)) <- get
-                  let k = nextId e
+typeEdge p c = do t <- getType
+                  let k = nextEdgeId t
                   t' <- flip addEdge t $ Edge k c k p
-                  put $ TypedDigraph g t'
+                  putType t'
                   return k
 
-guardKey t m = unless (member t m) $ fail $ unwords ["Key", show t, "not in map"]
-
 graphNode :: (Monad m) => a -> Int -> GraphBuilder a b m Int
-graphNode p t = do (TypedDigraph g@(Digraph gn ge) tg@(Digraph tn te)) <- get
-                   guardKey t tn
-                   let k = nextId gn
+graphNode p t = do g <- getGraph
+                   tg <- getType
+                   guardHasNodeType t tg
+                   let k = nextId $ nodes g
                    g' <- flip addNode g $ Node k t p
-                   put $ TypedDigraph g' tg
+                   putGraph g'
                    return k
 
 graphEdge :: Monad m => b -> Int -> (Int, Int) -> GraphBuilder a b m Int

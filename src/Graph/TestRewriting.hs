@@ -27,7 +27,7 @@ instance PrettyPrint a => PrettyPrint (Error a) where
 rewriteOnError :: (Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [Error (TypedDigraph a b)]
 rewriteOnError = rewrite
 
-rewriteAllOnError :: (Eq a, Eq b) => [Rule a b] -> TypedDigraph a b -> [Error (TypedDigraph a b)]
+rewriteAllOnError :: (Eq a, Eq b) => [Rule a b] -> [TypedDigraph a b] -> [Error (TypedDigraph a b)]
 rewriteAllOnError = rewriteAll
 
 tGraph :: Monad m => GraphBuilder () () m (Int, Int, Int, Int, Int, Int)

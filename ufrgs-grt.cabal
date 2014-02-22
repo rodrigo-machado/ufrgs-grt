@@ -13,7 +13,7 @@ name:                ufrgs-grt
 version:             0.1.0.0
 
 -- A short (one-line) description of the package.
-synopsis:            A graph rewriting toolkit.
+-- synopsis:            
 
 -- A longer description of the package.
 -- description:         
@@ -25,11 +25,11 @@ license:             GPL-3
 license-file:        LICENSE
 
 -- The package author(s).
-author:              Thiago Rafael Becker, Rodrigo Machado, Ricardo Heardt
+author:              Thiago Rafael Becker
 
 -- An email address to which users can send suggestions, bug reports, and 
 -- patches.
-maintainer:          rma@inf.ufrgs.br
+maintainer:          thiago.becker@gmail.com
 
 -- A copyright notice.
 -- copyright:           
@@ -44,14 +44,13 @@ cabal-version:       >=1.8
 
 executable ufrgs-grt
   -- .hs or .lhs file containing the Main module.
-  -- main-is:             
-  main-is: Main.hs  
-
+  main-is: Main.hs   
+  
   -- Modules included in this executable, other than Main.
   -- other-modules:       
   
   -- Other library packages from which modules are imported.
-  build-depends:       base ==4.6.*, transformers ==0.3.*, mtl ==2.1.*, containers ==0.5.*
+  build-depends:       base ==4.6.*, diagrams-svg ==1.0.*, transformers ==0.3.*, mtl ==2.1.*, containers ==0.5.*, diagrams-lib ==1.0.*
   
   -- Directories containing source files.
   hs-source-dirs:      src
