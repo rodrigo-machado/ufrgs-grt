@@ -1,0 +1,61 @@
+Graph {
+
+criação e acesso a grafos tipados
+	
+SimpleGraph:
+  empty      :: SimpleGraph
+  insertNode :: Id Payload SimpleGraph -> SimpleGraph
+  insertEdge ::  Id SrcId TgtId Payload SimpleGraph -> SimpleGraph
+
+TypedGraph = TGraph DiGraph DiGraph
+  validTypedGraph :: TypedGraph -> Bool 
+
+}
+
+
+
+
+Rule {
+
+}
+
+
+Match {
+	Match -- type Match = [(Int, Int)]
+	findMatches :: TypedGraph a b -> TypedGraph a b -> [Match]
+}
+
+Rewriting {
+	rewrite :: Rule -> Graph -> Match -> Graph
+}
+
+
+Main {
+
+     runGrammar :: GraphGrammar -> IO ()
+
+}
+
+
+SpaceState {
+
+    getSpaceState :: GraphGrammar -> Graph (Graph) (RWCode)
+}
+
+
+Render {
+   
+    "Drawable" a,b => Typedgraph (a) (b) -> Render ()
+
+}
+
+
+Draw {
+
+  typeclass Drawable => 
+
+
+}
+
+
+
