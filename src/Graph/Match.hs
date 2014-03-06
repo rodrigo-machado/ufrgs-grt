@@ -6,27 +6,26 @@ module Graph.Match
 
 import Control.Monad -- foldM
 import Data.Maybe
-import Graph.Graph
+import Graph.Digraph
 import qualified Data.IntMap as IM
 import qualified Data.List as L
 
-type Match = [(Int, Int)]
 
-findMatches :: TypedGraph a b -> TypedGraph a b -> [Match]
+findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
 findMatches l g = 
 	let matches = matchEdges l g 
 	in matches >>= \m -> (matchNodes l g m)
 
 	
 {- | A Condition consists of a function that, given a Morphism 'm', two
-TypedGraphs 'l', 'g' and two Edges 'le', 'ge', checks if 'ge' satisfies it
+TypedDigraphs 'l', 'g' and two Edges 'le', 'ge', checks if 'ge' satisfies it
 -}
 type Condition a b =
-	TypedGraph a b
+	TypedDigraph a b
 	-> Edge b 
-	-> TypedGraph a b
+	-> TypedDigraph a b
 	-> Edge b
-	-> Match
+	-> Morphism a b
 	-> Bool
 
 edgeTypeCond :: Condition a b
@@ -55,12 +54,16 @@ mapped.  If so, 'ge' is a matching Edge. If 'le's source doesn't occur in 'm',
 any 'ge' will satisfy this condition
 -}
 srcIDCond :: Condition a b
-srcIDCond l le g ge m =
+srcIDCond l le g ge m@(Morphism nal _) =
 	let lsrc = sourceID le
 	    gsrc = sourceID ge
-	    matched = (\(s, t) -> s == lsrc) `L.find` m
+	    matched = (\na ->
+		case na of
+			(Just n, _) -> lsrc == nodeID n
+			otherwise -> False
+			) `L.find` nal
 	in case matched of	
-		Just (_, n) -> gsrc == n
+		Just (_, Just n) -> gsrc == nodeID n
 		otherwise -> True
 
 {- | figures out if 'le's target already occurs in 'm'. If that's the case,
@@ -69,12 +72,16 @@ mapped.  If so, 'ge' is a matching Edge. If 'le's target doesn't occur in 'm',
 any 'ge' will satisfy this condition
 -}
 tarIDCond :: Condition a b
-tarIDCond l le g ge m =
+tarIDCond l le g ge m@(Morphism nal _) =
 	let ltar = targetID le
 	    gtar = targetID ge
-	    matched = (\(s, t) -> s == ltar) `L.find` m
+	    matched = (\na ->
+		case na of
+			(Just n, _) -> ltar == nodeID n
+			otherwise -> False
+			) `L.find` nal
 	in case matched of	
-		Just (_, n) -> gtar == n
+		Just (_, Just n) -> gtar == nodeID n
 		otherwise -> True
 
 {- | If 'le' is a loop edge, forces 'ge' to be a loop in 'g' -}
@@ -95,20 +102,19 @@ conditionList = [edgeTypeCond, srcTypeCond, tarTypeCond, srcIDCond, tarIDCond, l
 -}
 processEdges
 	:: [Condition a b]
-	-> TypedGraph a b
+	-> TypedDigraph a b
 	-> Edge b
-	-> TypedGraph a b
+	-> TypedDigraph a b
 	-> Edge b
-	-> Match
-	-> Maybe Match
-processEdges cl l@(TypedGraph ld _) le g@(TypedGraph gd _) ge m =
+	-> Morphism a b
+	-> Maybe (Morphism a b)
+processEdges cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
-		(targetID le, targetID ge) :
-		(sourceID le, sourceID ge) :
-	--TODO: ops, Match e edge?
-		(edgeID le, edgeID ge) :
-		m
+		addNodeAction (target le ld) (target ge gd)
+		$ addNodeAction (source le ld) (source ge gd)
+		$ addEdgeAction	le ge
+		$ m
 	else Nothing
 		
 
@@ -118,70 +124,67 @@ this context.  Returns a list of Morphisms, each with the new possibility added
 -}
 applyCond
 	:: [Edge b]
-	-> TypedGraph a b
-	-> TypedGraph a b
-	-> Match
-	-> [Match]
-applyCond (le:les) l g@(TypedGraph dg _) m =
-	let newMatches = mapMaybe 
+	-> TypedDigraph a b
+	-> TypedDigraph a b
+	-> Morphism a b
+	-> [Morphism a b]
+applyCond (le:les) l g@(TypedDigraph dg _) m =
+	let newMorphisms = mapMaybe 
 		(\ge -> processEdges conditionList l le g ge m) $ edges dg
 	in applyCondMult 
 		les
 		l
 		g
-		newMatches
+		newMorphisms
 
 {- | given a list of Edges in graph 'l' and a list of partial morphisms, 
 returns all possible morphisms with these Edges mapped -}
 applyCondMult
 	:: [Edge b]
-	-> TypedGraph a b
-	-> TypedGraph a b
-	-> [Match]
-	-> [Match]
-applyCondMult les l@(TypedGraph d _) g ml =
+	-> TypedDigraph a b
+	-> TypedDigraph a b
+	-> [Morphism a b]
+	-> [Morphism a b]
+applyCondMult les l@(TypedDigraph d _) g ml =
 	case les of
 		[] -> ml
 		otherwise -> ml >>= \m -> applyCond les l g m
 
-{- | given to TypedGraph's, returns a list of all possible morphisms
+{- | given to TypedDigraph's, returns a list of all possible morphisms
 considering only the subgraph's inducted by the edges -}
-matchEdges :: TypedGraph a b -> TypedGraph a b -> [Match]
-matchEdges l@(TypedGraph dg _) g =
-	applyCondMult (edges dg) l g []
+matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
+matchEdges l@(TypedDigraph dg _) g =
+	applyCondMult (edges dg) l g [Morphism [] []]
 
 addNodeMatch
 	:: [Node a]
-	-> TypedGraph a b
-	-> Match
-	-> [Match]
-addNodeMatch (ln:lns) g@(TypedGraph dg _) m =
+	-> TypedDigraph a b
+	-> Morphism a b
+	-> [Morphism a b]
+addNodeMatch (ln:lns) g@(TypedDigraph dg _) m =
 	let ltype = nodeType ln
 	    candidates = filter (\n -> nodeType n == ltype) $ nodes dg
-	    newMatches = fmap (\c -> (nodeID ln, nodeID c) : m) candidates
+	    newMorphisms = fmap (\c -> addNodeAction ln c m) candidates
 	in addNodeMatches
 		lns
 		g
-		newMatches
---addNodeMatch [] _ m = return m
+		newMorphisms
+
+addNodeMatch [] _ m = return m
 
 addNodeMatches
 	:: [Node a]
-	-> TypedGraph a b
-	-> [Match]
-	-> [Match]
+	-> TypedDigraph a b
+	-> [Morphism a b]
+	-> [Morphism a b]
 addNodeMatches lns g ml =
 	case lns of
 		[] -> ml
 		otherwise -> ml >>= \m -> addNodeMatch lns g m
 
-matchNodes :: TypedGraph a b -> TypedGraph a b -> Match -> [Match]
-matchNodes l@(TypedGraph dl _) g m =
+matchNodes :: TypedDigraph a b -> TypedDigraph a b -> Morphism a b -> [Morphism a b]
+matchNodes l@(TypedDigraph dl _) g m@(Morphism nal _) =
 	let lnl = nodes dl
-	    mlnl = foldr (\(ln, _) acc ->
-                let node = findNode ln dl in
-		case node of
-			(Just n) -> n : acc
-			otherwise -> acc) [] m
+	    mlnl = foldr (\(Just ln, _) acc -> ln : acc) [] nal
 	    rlnl = lnl L.\\ mlnl
 	in addNodeMatch rlnl g m
