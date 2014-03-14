@@ -13,6 +13,10 @@ module Graph.Digraph
 	, removeEdge
 	, keepNode
 	, keepEdge
+	, insNode
+	, insEdge
+	, delNode
+	, delEdge
 	, nodes
 	, edges
 	, findNode
@@ -161,6 +165,42 @@ sourceID (Edge _ (src, _) _ _) = src
 
 targetID :: Edge b -> Int
 targetID (Edge _ (_, tar) _ _) = tar
+
+----------------------------------------------------------------------------
+-- | Non-monadic interface
+-- | default approach: keep original Graph unchanged when function "fails"
+
+insNode :: Node a -> Digraph a b -> Digraph a b
+insNode n@(Node id _ _) g@(Digraph nm em) =
+	if id `IM.member` nm 
+		then g
+		else Digraph (IM.insert id n nm) em
+
+insEdge :: Edge b -> Digraph a b -> Digraph a b
+insEdge e@(Edge id (s, t) _ _) g@(Digraph nm em)
+	| id `IM.member` em = 
+		g
+	| s `IM.member` nm && t `IM.member` nm =
+		Digraph nm (IM.insert id e em)
+	| otherwise =
+		g
+
+delNode :: Node a -> Digraph a b -> Digraph a b
+delNode n@(Node id _ _) g@(Digraph nm em)
+	| id `IM.notMember` nm =
+		g
+	| IM.fold 
+		(\(Edge eid (s, t) _ _) acc -> acc || s == id || t == id) 
+		False em =
+		g
+	| otherwise =
+		Digraph (IM.delete id nm) em
+
+delEdge :: Edge b -> Digraph a b -> Digraph a b
+delEdge e@(Edge id _ _ _) g@(Digraph nm em) =
+	if id `IM.member` em 
+		then Digraph nm (IM.delete id em)
+		else g
 
 ----------------------------------------------------------------------------
 -- | Morphism related functions
