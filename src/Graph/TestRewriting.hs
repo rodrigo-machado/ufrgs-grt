@@ -15,7 +15,7 @@ import Graph.Builder
 data Error r = Err String | OK r deriving (Eq, Show)
 
 instance Monad Error where
-    return x = OK x
+    return = OK
     (Err y) >>= _ = Err y
     (OK x) >>= f = (f x)
     fail = Err
@@ -27,7 +27,7 @@ instance PrettyPrint a => PrettyPrint (Error a) where
 rewriteOnError :: (Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [Error (TypedDigraph a b)]
 rewriteOnError = rewrite
 
-rewriteAllOnError :: (Eq a, Eq b) => [Rule a b] -> TypedDigraph a b -> [Error (TypedDigraph a b)]
+rewriteAllOnError :: (Eq a, Eq b) => [Rule a b] -> [TypedDigraph a b] -> [Error (TypedDigraph a b)]
 rewriteAllOnError = rewriteAll
 
 tGraph :: Monad m => GraphBuilder m [(String, Int)]
@@ -58,7 +58,7 @@ rule1 :: Monad m => m (Rule () ())
 rule1 = alpha >>= flip buildRule (deleteNode 0)
 
 rule2 :: Monad m => m (Rule () ())
-rule2 = alpha >>= flip buildRule (createNode 0)
+rule2 = alpha >>= flip buildRule (createNode () 0)
 
 rules :: Monad m => m [Rule () ()]
 rules = sequence [rule1, rule2]

@@ -29,8 +29,8 @@ rewrite rule@(Morphism nr er) graph = liftM (doRewrite rule graph) $ findMatches
 		tGraph (TypedDigraph g t) = t
 		alpha = left rule $ tGraph graph
 
-rewriteAll :: (Monad m, Eq a, Eq b) => [Rule a b] -> TypedDigraph a b -> [m (TypedDigraph a b)]
-rewriteAll rs g = concat $ map (flip rewrite g) rs
+rewriteAll :: (Monad m, Eq a, Eq b) => [Rule a b] -> [TypedDigraph a b] -> [m (TypedDigraph a b)]
+rewriteAll rs = concat . map (\g -> concat $ map (flip rewrite g) rs)
 
 
 doRewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> Morphism a b -> m (TypedDigraph a b)
