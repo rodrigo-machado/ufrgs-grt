@@ -1,6 +1,9 @@
 module Graph.Match
 	(
-	findMatches
+	findMatches,
+	isSurjective,
+	isInjective,
+	findIsoMorphisms 
 	)
 	where
 
@@ -206,18 +209,45 @@ matchNodes :: TypedDigraph a b -> TypedDigraph a b -> Mapping -> [Mapping]
 matchNodes l@(TypedDigraph dl _) g m@(nmatches, _) =
 	let lnl = nodes dl
 	    mlnl = foldr (\(ln, _) acc ->
-                let node = findNode ln dl in
-		case node of
-			(Just n) -> n : acc
-			otherwise -> acc) [] nmatches 
+			let node = findNode ln dl in
+				case node of
+				(Just n) -> n : acc
+				otherwise -> acc) [] nmatches 
 	    rlnl = lnl L.\\ mlnl
 	in addNodeMapping rlnl g m
 
-{-
+
+isSurjective :: TypedDigraph a b -> Mapping -> Bool
+isSurjective (TypedDigraph (Digraph gnm gem) _) m@(nm, em) =
+	let mNodeList =	L.nub $ foldr (\(_, n) acc -> n:acc) [] nm
+	    mEdgeList = L.nub $ foldr (\(_, e) acc -> e:acc) [] em
+	in
+		if IM.size gnm == L.length mNodeList &&
+		   IM.size gem == L.length mEdgeList
+		then True
+		else False
+
+
+isInjective :: Mapping -> Bool
+isInjective ([], _) = True
+isInjective (_, []) = True
+isInjective (nms, ems) =
+	iter nms [] &&
+	iter ems []
+	where
+		iter xs mem =
+			case xs of
+			[] -> True
+			((_, t):xs) -> if t `L.elem` mem
+					  then False
+					  else iter xs (t:mem)	
+
+
 findIsoMorphisms :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph gnm gem) _) =
-	if size lnm != size gnm ||
-	   size lem != size gem
+	if IM.size lnm /= IM.size gnm ||
+	   IM.size lem /= IM.size gem
 	then []
-	else 
--}
+	else filter isInjective $
+		 	filter (isSurjective g) $
+		 		findMatches l g
