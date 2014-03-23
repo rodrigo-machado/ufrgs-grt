@@ -1,7 +1,6 @@
 module Graph.Match
 	(
-	findMatches,
-	findIsoMorphism
+	findMatches
 	)
 	where
 
