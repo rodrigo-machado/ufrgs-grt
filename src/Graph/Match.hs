@@ -177,6 +177,8 @@ addNodeMapping
 	-> TypedDigraph a b
 	-> Mapping
 	-> [Mapping]
+addNodeMapping [] g m =
+	[m]
 addNodeMapping (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
 	let ltype = nodeType ln
 	    candidates = filter (\n -> nodeType n == ltype) $ nodes dg
@@ -211,3 +213,11 @@ matchNodes l@(TypedDigraph dl _) g m@(nmatches, _) =
 	    rlnl = lnl L.\\ mlnl
 	in addNodeMapping rlnl g m
 
+{-
+findIsoMorphisms :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph gnm gem) _) =
+	if size lnm != size gnm ||
+	   size lem != size gem
+	then []
+	else 
+-}
