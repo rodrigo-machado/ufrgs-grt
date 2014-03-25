@@ -1,6 +1,9 @@
 module Graph.Match
 	(
-	findMatches
+	findMatches,
+	isSurjective,
+	isInjective,
+	findIsoMorphisms 
 	)
 	where
 
@@ -10,24 +13,42 @@ import Graph.Digraph
 import qualified Data.IntMap as IM
 import qualified Data.List as L
 
+-- | Mapping:  (Node matches, Edge matches)
+type Mapping = ([(Int, Int)], [(Int, Int)])
 
-findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
+
+findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatches l g = 
 	let matches = matchEdges l g 
 	in matches >>= \m -> (matchNodes l g m)
 
 	
-{- | A Condition consists of a function that, given a Morphism 'm', two
+insNodeMapping :: (Int, Int) -> Mapping -> Mapping
+insNodeMapping newm m@(ns, es) =
+	if newm `L.elem` ns
+	then m
+	else (newm:ns, es)
+
+insEdgeMapping :: (Int, Int) -> Mapping -> Mapping
+insEdgeMapping newm m@(ns, es) =
+	if newm `L.elem` es
+	then m
+	else (ns, newm:es)
+
+
+{- | A Condition consists of a function that, given a Mapping 'm', two
 TypedDigraphs 'l', 'g' and two Edges 'le', 'ge', checks if 'ge' satisfies it
+according to internal rules
 -}
 type Condition a b =
 	TypedDigraph a b
 	-> Edge b 
 	-> TypedDigraph a b
 	-> Edge b
-	-> Morphism a b
+	-> Mapping
 	-> Bool
 
+{- | Checks if both edges are from the same type -}
 edgeTypeCond :: Condition a b
 edgeTypeCond l le g ge m =
 	edgeType le == edgeType ge
@@ -54,16 +75,12 @@ mapped.  If so, 'ge' is a matching Edge. If 'le's source doesn't occur in 'm',
 any 'ge' will satisfy this condition
 -}
 srcIDCond :: Condition a b
-srcIDCond l le g ge m@(Morphism nal _) =
+srcIDCond l le g ge m@(nmatches, _) =
 	let lsrc = sourceID le
 	    gsrc = sourceID ge
-	    matched = (\na ->
-		case na of
-			(Just n, _) -> lsrc == nodeID n
-			otherwise -> False
-			) `L.find` nal
+	    matched = (\(s, t) -> s == lsrc) `L.find` nmatches
 	in case matched of	
-		Just (_, Just n) -> gsrc == nodeID n
+		Just (_, n) -> gsrc == n
 		otherwise -> True
 
 {- | figures out if 'le's target already occurs in 'm'. If that's the case,
@@ -72,19 +89,19 @@ mapped.  If so, 'ge' is a matching Edge. If 'le's target doesn't occur in 'm',
 any 'ge' will satisfy this condition
 -}
 tarIDCond :: Condition a b
-tarIDCond l le g ge m@(Morphism nal _) =
+tarIDCond l le g ge m@(nmatches, _) =
 	let ltar = targetID le
 	    gtar = targetID ge
-	    matched = (\na ->
-		case na of
-			(Just n, _) -> ltar == nodeID n
-			otherwise -> False
-			) `L.find` nal
+	    matched = (\(s, t) -> s == ltar) `L.find` nmatches
 	in case matched of	
-		Just (_, Just n) -> gtar == nodeID n
+		Just (_, n) -> gtar == n
 		otherwise -> True
 
-{- | If 'le' is a loop edge, forces 'ge' to be a loop in 'g' -}
+{- | If 'le' is a loop edge, forces 'ge' to be a loop in 'g'. This is due the
+sequential nature of processEdges. A loop edge being first matched, for
+example, isn't able to detect a coincident node that didn't appear earlier in
+the Mapping
+-}
 loopCond :: Condition a b
 loopCond l le g ge m =
 	let lsrc = sourceID le
@@ -98,7 +115,7 @@ loopCond l le g ge m =
 conditionList = [edgeTypeCond, srcTypeCond, tarTypeCond, srcIDCond, tarIDCond, loopCond]
 
 {- | if all conditions in 'cl' get satisfied by the given edge 'ge', returns the
-'m' Morphism with the new source/target pairs added. 
+'m' Mapping with the new source/target pairs added. 
 -}
 processEdges
 	:: [Condition a b]
@@ -106,15 +123,15 @@ processEdges
 	-> Edge b
 	-> TypedDigraph a b
 	-> Edge b
-	-> Morphism a b
-	-> Maybe (Morphism a b)
+	-> Mapping
+	-> Maybe Mapping
 processEdges cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 	if foldr (\c acc -> (c l le g ge m) && acc) True cl 
 	then Just $
-		addNodeAction (target le ld) (target ge gd)
-		$ addNodeAction (source le ld) (source ge gd)
-		$ addEdgeAction	le ge
-		$ m
+		insNodeMapping (targetID le, targetID ge) $ -- adds node Mappings
+		insNodeMapping (sourceID le, sourceID ge) $
+		insEdgeMapping (edgeID le, edgeID ge)	  $ -- adds edge Mapping
+		m
 	else Nothing
 		
 
@@ -126,16 +143,16 @@ applyCond
 	:: [Edge b]
 	-> TypedDigraph a b
 	-> TypedDigraph a b
-	-> Morphism a b
-	-> [Morphism a b]
+	-> Mapping
+	-> [Mapping]
 applyCond (le:les) l g@(TypedDigraph dg _) m =
-	let newMorphisms = mapMaybe 
+	let newMappings = mapMaybe 
 		(\ge -> processEdges conditionList l le g ge m) $ edges dg
 	in applyCondMult 
 		les
 		l
 		g
-		newMorphisms
+		newMappings
 
 {- | given a list of Edges in graph 'l' and a list of partial morphisms, 
 returns all possible morphisms with these Edges mapped -}
@@ -143,48 +160,94 @@ applyCondMult
 	:: [Edge b]
 	-> TypedDigraph a b
 	-> TypedDigraph a b
-	-> [Morphism a b]
-	-> [Morphism a b]
+	-> [Mapping]
+	-> [Mapping]
 applyCondMult les l@(TypedDigraph d _) g ml =
 	case les of
 		[] -> ml
 		otherwise -> ml >>= \m -> applyCond les l g m
 
-{- | given to TypedDigraph's, returns a list of all possible morphisms
+{- | given two TypedDigraph's, returns a list of all possible morphisms
 considering only the subgraph's inducted by the edges -}
-matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Morphism a b]
+matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 matchEdges l@(TypedDigraph dg _) g =
-	applyCondMult (edges dg) l g [Morphism [] []]
+	applyCondMult (edges dg) l g [([], [])]
 
-addNodeMatch
+{- | given a list of Nodes @ln@, a TypedDigraph @g@ and a Mapping @m@, returns a list of 
+Mappings, each containing a single possible node match added to @m@ -}
+addNodeMapping
 	:: [Node a]
 	-> TypedDigraph a b
-	-> Morphism a b
-	-> [Morphism a b]
-addNodeMatch (ln:lns) g@(TypedDigraph dg _) m =
+	-> Mapping
+	-> [Mapping]
+addNodeMapping [] g m =
+	[m]
+addNodeMapping (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
 	let ltype = nodeType ln
 	    candidates = filter (\n -> nodeType n == ltype) $ nodes dg
-	    newMorphisms = fmap (\c -> addNodeAction ln c m) candidates
-	in addNodeMatches
+	    newMappings = 
+		fmap (\c -> ((nodeID ln, nodeID c) : nmatch, ematch))
+		     candidates
+	in addNodeMappings
 		lns
 		g
-		newMorphisms
+		newMappings
+--addNodeMapping [] _ m = return m
 
-addNodeMatch [] _ m = return m
-
-addNodeMatches
+{- used in mutual recursion with addNodeMapping. -}
+addNodeMappings
 	:: [Node a]
 	-> TypedDigraph a b
-	-> [Morphism a b]
-	-> [Morphism a b]
-addNodeMatches lns g ml =
+	-> [Mapping]
+	-> [Mapping]
+addNodeMappings lns g ml =
 	case lns of
 		[] -> ml
-		otherwise -> ml >>= \m -> addNodeMatch lns g m
+		otherwise -> ml >>= \m -> addNodeMapping lns g m
 
-matchNodes :: TypedDigraph a b -> TypedDigraph a b -> Morphism a b -> [Morphism a b]
-matchNodes l@(TypedDigraph dl _) g m@(Morphism nal _) =
+matchNodes :: TypedDigraph a b -> TypedDigraph a b -> Mapping -> [Mapping]
+matchNodes l@(TypedDigraph dl _) g m@(nmatches, _) =
 	let lnl = nodes dl
-	    mlnl = foldr (\(Just ln, _) acc -> ln : acc) [] nal
+	    mlnl = foldr (\(ln, _) acc ->
+			let node = findNode ln dl in
+				case node of
+				(Just n) -> n : acc
+				otherwise -> acc) [] nmatches 
 	    rlnl = lnl L.\\ mlnl
-	in addNodeMatch rlnl g m
+	in addNodeMapping rlnl g m
+
+
+isSurjective :: TypedDigraph a b -> Mapping -> Bool
+isSurjective (TypedDigraph (Digraph gnm gem) _) m@(nm, em) =
+	let mNodeList =	L.nub $ foldr (\(_, n) acc -> n:acc) [] nm
+	    mEdgeList = L.nub $ foldr (\(_, e) acc -> e:acc) [] em
+	in
+		if IM.size gnm == L.length mNodeList &&
+		   IM.size gem == L.length mEdgeList
+		then True
+		else False
+
+
+isInjective :: Mapping -> Bool
+isInjective ([], _) = True
+isInjective (_, []) = True
+isInjective (nms, ems) =
+	iter nms [] &&
+	iter ems []
+	where
+		iter xs mem =
+			case xs of
+			[] -> True
+			((_, t):xs) -> if t `L.elem` mem
+					  then False
+					  else iter xs (t:mem)	
+
+
+findIsoMorphisms :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph gnm gem) _) =
+	if IM.size lnm /= IM.size gnm ||
+	   IM.size lem /= IM.size gem
+	then []
+	else filter isInjective $
+		 	filter (isSurjective g) $
+		 		findMatches l g
