@@ -1,6 +1,6 @@
 module Graph.Rewriting ( Rule
+                       , left
                        , rewrite
-                       , rewriteAll
                        ) where
 
 import Data.Maybe
@@ -23,23 +23,14 @@ left (Morphism nr er) t = flip TypedDigraph t $ Digraph (fromList . toNodeKeyPai
 		toNodeKeyPair = map (\n -> (nodeID n, n))
 		toEdgeKeyPair = map (\e -> (edgeID e, e))
 
-rewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> [m (TypedDigraph a b)]
-rewrite rule@(Morphism nr er) graph = liftM (doRewrite rule graph) $ findMatches alpha graph
-	where
-		tGraph (TypedDigraph g t) = t
-		alpha = left rule $ tGraph graph
+rewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> Morphism a b -> m (TypedDigraph a b)
+rewrite rule tGraph@(TypedDigraph graph _) match = applyTypedMorphism (rename ns es rule match) tGraph
+    where
+        keyList :: IntMap a -> [Int]
+        keyList = keys
+        ns = 1 + (maximum $ map nodeID $ nodes graph)
+        es = 1 + (maximum $ map edgeID $ edges graph)
 
-rewriteAll :: (Monad m, Eq a, Eq b) => [Rule a b] -> [TypedDigraph a b] -> [m (TypedDigraph a b)]
-rewriteAll rs = concat . map (\g -> concat $ map (flip rewrite g) rs)
-
-
-doRewrite :: (Monad m, Eq a, Eq b) => Rule a b -> TypedDigraph a b -> Morphism a b -> m (TypedDigraph a b)
-doRewrite rule tGraph@(TypedDigraph graph types) match = applyTypedMorphism (rename ns es rule match) tGraph
-	where
-		keyList :: IntMap a -> [Int]
-		keyList = keys
-		ns = 1 + (maximum $ map nodeID $ nodes graph)
-		es = 1 + (maximum $ map edgeID $ edges graph)
 
 renameNode :: [(Int, Int)] -> Node a -> Node a
 renameNode namemap (Node id t p) = Node (fromJust $ lookup id namemap) t p
