@@ -1,9 +1,11 @@
 module Graph.Match
 	(
+    Mapping,
 	findMatches,
 	isSurjective,
 	isInjective,
-	findIsoMorphisms 
+	findIsoMorphisms,
+    isIsomorphic
 	)
 	where
 
@@ -251,3 +253,6 @@ findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph g
 	else filter isInjective $
 		 	filter (isSurjective g) $
 		 		findMatches l g
+
+isIsomorphic :: TypedDigraph a b -> TypedDigraph a b -> Bool
+isIsomorphic a b = findIsoMorphisms a b /= []
