@@ -50,7 +50,7 @@ executable ufrgs-grt
   -- other-modules:       
   
   -- Other library packages from which modules are imported.
-  build-depends:       base ==4.6.*, diagrams-svg ==1.0.*, transformers ==0.3.*, mtl ==2.1.*, containers ==0.5.*, diagrams-lib ==1.0.*
+  build-depends:       base ==4.6.*, diagrams-svg ==1.0.*, transformers ==0.3.*, mtl ==2.1.*, containers ==0.5.*, diagrams-lib ==1.0.*, MaybeT
   
   -- Directories containing source files.
   hs-source-dirs:      src

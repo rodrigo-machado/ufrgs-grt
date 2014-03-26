@@ -23,5 +23,20 @@ arrowOpts = with & headGap  .~ 0.07
 --formatGraph :: Digraph a b -> Diagram B R2
 formatGraph g = let ns = nodes g
                     es = edges g
-                in  decorateTrail (regPoly (length ns) 1) (map (node . nodeID) ns)
+                in  decorateTrail (regPoly (length ns) 1) (map (node . elemId) ns)
                   # applyAll (map (\(Edge _ (s, t) _ _) -> connectOutside' arrowOpts s t) es)
+
+{-class Drawable a where
+    drawNode :: a -> Diagram b R2
+    drawEdge :: a -> Diagram b R2 -> Diagram b R2
+
+instance Drawable a => Drawable (Node a) where
+    drawNode = draw . payload
+    drawEdge = const id
+
+instance Drawable b => Drawable (Edge b) where
+    drawNode = error ""
+    drawEdge = draw . payload
+
+instance Drawable () where-}
+

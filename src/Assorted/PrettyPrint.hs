@@ -14,3 +14,5 @@ instance PrettyPrint a => PrettyPrint [a] where
 instance PrettyPrint a => PrettyPrint (Maybe a)
 instance PrettyPrint () where
     prettyPrint = const ""
+instance (PrettyPrint a, PrettyPrint b) => PrettyPrint (a, b) where
+    prettyPrint (a, b) = unlines [prettyPrint a, ";", prettyPrint b]

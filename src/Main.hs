@@ -20,35 +20,15 @@ import Graph.Match
 import Graph.Rewriting
 import Graph.Serialized
 import Graph.Draw
+import Graph.StateSpace
 
 main = do
     (options, systems) <- parseOptions
     system <- readFile $ head systems
     let (Serialized graphs rules) = unserializeUnit system
+    ss <- runSpaceState (stepsToStop options) (head graphs) rules
+    output (outputFormat options) ss
     return ()
-
-transform :: Monad m => Int -> TypedDigraph a b -> [Rule a b] -> [m (TypedDigraph a b)]
-transform n g rs = trans n [[return g]] rs
-    where trans :: Monad m => Int -> [[m (TypedDigraph a b)]] -> [Rule a b] -> [m (TypedDigraph a b)]
-          trans 0 gs _ = concat gs
-          trans n gs rs = trans (n - 1) ((transformAllGraphs (head gs) rs):gs) rs
-
-transformAllGraphs :: (Eq a, Eq b, Monad m) => [TypedDigraph a b] -> [Rule a b] -> [m (TypedDigraph a b)]
-transformAllGraphs gs rs = do
-    g <- gs
-    transformBigStep g rs
-
-transformBigStep :: (Eq a, Eq b, Monad m) => TypedDigraph a b -> [Rule a b] -> [m (TypedDigraph a b)]
-transformBigStep g rs = do
-    r <- rs
-    transformSmallStep g r
-
-transformSmallStep :: (Eq a, Eq b, Monad m) => TypedDigraph a b -> Rule a b -> [m (TypedDigraph a b)]
-transformSmallStep g r = do
-    let (TypedDigraph _ t) = g
-        l = left r t
-        ms = findMatches l g
-    map (rewrite r g) ms
 
 unserializeUnit :: String -> Serialized () ()
 unserializeUnit = unserialize
@@ -74,12 +54,11 @@ toOutputFormat s = case s of
 
 graph (TypedDigraph g t) = g
 
-output :: (Show a, Show b, PrettyPrint a, PrettyPrint b) => OutputFormat -> [TypedDigraph a b] -> IO ()
+output :: (Show a, Show b, PrettyPrint a, PrettyPrint b) => OutputFormat -> Digraph a b -> IO ()
 output Pretty = printPretty
 output Raw    = print
 output TikZ   = undefined
-output SVG    = renderSVG "output.svg" (Dims 400 600) . formatGraph . graph . (!!0)
-
+output SVG    = renderSVG "output.svg" (Dims 400 600) . formatGraph
 
 defaultOptions = SystemOptions { stepsToStop = 1
                                , outputFormat = Pretty

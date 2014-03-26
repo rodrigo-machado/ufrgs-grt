@@ -1,9 +1,10 @@
-module Graph.Match
+    module Graph.Match
 	(
-	findMatches,
-	isSurjective,
-	isInjective,
-	findIsoMorphisms 
+      Mapping
+	, findMatches
+	, isSurjective
+	, isInjective
+	, findIsoMorphisms 
 	)
 	where
 
@@ -186,7 +187,7 @@ addNodeMapping (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
 	let ltype = nodeType ln
 	    candidates = filter (\n -> nodeType n == ltype) $ nodes dg
 	    newMappings = 
-		fmap (\c -> ((nodeID ln, nodeID c) : nmatch, ematch))
+		fmap (\c -> ((elemId ln, elemId c) : nmatch, ematch))
 		     candidates
 	in addNodeMappings
 		lns
