@@ -15,7 +15,9 @@ import Graph.Digraph
 import qualified Data.IntMap as IM
 import qualified Data.List as L
 
--- | Mapping:  (Node matches, Edge matches)
+-- | Is a tuple of two relations regarding two graphs (possibly equal):
+-- the first among their respective nodes, the other among their edges. Each
+-- relation is described as a list of (Int, Int) tuples.
 type Mapping = ([(Int, Int)], [(Int, Int)])
 
 
@@ -100,12 +102,13 @@ tarIDCond l le g ge m@(nmatches, _) =
 		Just (_, n) -> gtar == n
 		otherwise -> True
 
--- | If @le@ is a loop edge, check if @ge@ is also a loop in @g@. This 
--- condition is due the sequential nature of processEdges. Conditions that 
--- check node coincidence (like @srcIDCond@) rely on previously mappings, they
--- aren't able to detect a mapping node in the current step. 
--- Without @loopCond@, a loop edge that happens to be the first to be mapped
--- passes srcIDCond and tarIDCond.
+-- | If @le@ is a loop edge, check if @ge@ is also a loop in @g@.
+
+-- This condition is due to the sequential nature of processEdges. Conditions 
+-- that check node coincidence (like @srcIDCond@) rely on previously mappings,
+-- so they aren't able to detect a mapping node in the current step. 
+-- Without @loopCond@, a loop edge that, e.g., happens to be the first to be
+-- mapped passes srcIDCond and tarIDCond.
 loopCond :: Condition a b
 loopCond l le g ge m =
 	let lsrc = sourceID le
@@ -226,10 +229,11 @@ matchNodes l@(TypedDigraph dl _) g m@(nmatches, _) =
 	in addNodeMapping rlnl g m
 
 
--- | Check if mapping @m@ is surjective. Currently, @isSurjective@ relies on
--- @L.nub@ to get the set of nodes and edges mapped in @m@. The number of
--- elements in this set is compared to those from graph @g@ to see if all got
--- mapped.
+-- | Check if mapping @m@ is surjective. 
+
+-- Currently, @isSurjective@ relies on @L.nub@ to get the set of nodes and edges
+-- mapped in @m@. The number of elements in this set is compared to those from
+-- graph @g@ to see if all got mapped.
 -- TODO: use Data.Set for efficiency reasons.
 isSurjective :: TypedDigraph a b -> Mapping -> Bool
 isSurjective (TypedDigraph (Digraph gnm gem) _) m@(nm, em) =
@@ -241,11 +245,13 @@ isSurjective (TypedDigraph (Digraph gnm gem) _) m@(nm, em) =
 		then True
 		else False
 
--- | Check if a mapping is injective. If the mapping is empty, it's by 
--- definition injective. Otherwise, test, by calling the helper function @iter@
--- over all node and edge mappings, if they represent an injective relation. 
--- @iter@ does so by checking if any "right side" node/edge got mapped twice,
--- with help of @mem@ that "remembers" the node/edges scanned so far.
+-- | Check if a mapping is injective.
+
+-- If the mapping is empty, it's by  definition injective. Otherwise, test, by
+-- calling the helper function @iter@ over all node and edge mappings, if they
+-- represent an injective relation.  @iter@ does so by checking if any "right
+-- side" node/edge got mapped twice, with help of @mem@ that "remembers" the
+-- node/edges scanned so far.
 isInjective :: Mapping -> Bool
 isInjective ([], []) = True
 isInjective (nms, ems) =
@@ -269,5 +275,6 @@ findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph g
 		 	filter (isSurjective g) $
 		 		findMatches l g
 
+-- | Check if there's an isomorphism between two graphs.
 isIsomorphic :: TypedDigraph a b -> TypedDigraph a b -> Bool
 isIsomorphic a b = findIsoMorphisms a b /= []
