@@ -35,7 +35,7 @@ transform :: (Eq a, Eq b) => Int -> TypedDigraph a b -> [Rule a b] -> [Maybe (Ty
 transform n g rs = trans n [[return g]] rs
     where trans :: (Eq a, Eq b) => Int -> [[Maybe (TypedDigraph a b)]] -> [Rule a b] -> [Maybe (TypedDigraph a b)]
           trans 0 gs _ = concat gs
-          trans n gs rs = trans (n - 1) ((nubIsomorphic (transformAllGraphs (catMaybes $ head gs) rs)):gs) rs
+          trans n gs rs = trans (n - 1) ((map return $ nubIsomorphic $ catMaybes (transformAllGraphs (catMaybes $ head gs) rs)):gs) rs
 
 transformAllGraphs :: (Eq a, Eq b) => [TypedDigraph a b] -> [Rule a b] -> [Maybe (TypedDigraph a b)]
 transformAllGraphs gs rs = do
