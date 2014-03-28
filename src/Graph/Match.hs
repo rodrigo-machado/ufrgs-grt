@@ -46,9 +46,9 @@ insEdgeMapping newm m@(ns, es) =
 -- checks if @ge@ satisfies this conditions internal criteria as a matching
 -- edge.
 type Condition a b =
-	TypedDigraph a b    -- ^ @l@, the "left side" graph
+	TypedDigraph a b	-- ^ @l@, the "left side" graph
 	-> Edge b			-- ^ @le@, an edge from @l@
-	-> TypedDigraph a b -- ^ @g@, the "right side" graph
+	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
 	-> Edge b			-- ^ @ge@, an edge from @g@
 	-> Mapping			-- ^ @m@, what already got mapped
 	-> Bool
@@ -123,9 +123,9 @@ conditionList = [edgeTypeCond, srcTypeCond, tarTypeCond, srcIDCond, tarIDCond,
 -- @m@ Mapping with the new source/target pairs added. 
 processEdges
 	:: [Condition a b]
-	-> TypedDigraph a b -- ^ @l@, the "left side" graph
+	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
 	-> Edge b			-- ^ @le@, an edge from @l@
-	-> TypedDigraph a b -- ^ @g@, the "right side" graph
+	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
 	-> Edge b			-- ^ @ge@, an edge from @g@
 	-> Mapping			-- ^ @m@, what already got mapped
 	-> Maybe Mapping
@@ -144,8 +144,8 @@ processEdges cl l@(TypedDigraph ld _) le g@(TypedDigraph gd _) ge m =
 -- from graph @g@, taking @m@ as initial mapping.
 applyCond
 	:: [Edge b]			-- ^ list of edges to be mapped
-	-> TypedDigraph a b -- ^ @l@, the "left side" graph
-	-> TypedDigraph a b -- ^ @g@, the "right side" graph
+	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
+	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
 	-> Mapping			-- ^ @m@, what already got mapped
 	-> [Mapping]
 applyCond (le:les) l g@(TypedDigraph dg _) m =
@@ -162,8 +162,8 @@ applyCond (le:les) l g@(TypedDigraph dg _) m =
 -- from graph @g@, taking each mapping from @ml@ as initial mapping.
 applyCondMult
 	:: [Edge b]			-- ^ list of edges to be mapped
-	-> TypedDigraph a b -- ^ @l@, the "left side" graph
-	-> TypedDigraph a b -- ^ @g@, the "right side" graph
+	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
+	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
 	-> [Mapping]		-- ^ @ml@, all mappings created so far
 	-> [Mapping]
 applyCondMult les l@(TypedDigraph d _) g ml =
@@ -182,7 +182,7 @@ matchEdges l@(TypedDigraph dg _) g =
 -- graph @g@, taking @m@ as initial mapping.
 addNodeMapping
 	:: [Node a]			-- ^ list of nodes to be mapped
-	-> TypedDigraph a b -- ^ @g@, the "right side" graph
+	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
 	-> Mapping			-- ^ @m@, what already got mapped
 	-> [Mapping]
 addNodeMapping [] g m =
@@ -204,7 +204,7 @@ addNodeMapping (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
 -- from graph @g@, taking each mapping from @ml@ as initial mapping.
 addNodeMappings
 	:: [Node a]			-- ^ list of nodes to be mapped
-	-> TypedDigraph a b -- ^ @g@, the "right side" graph
+	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
 	-> [Mapping]		-- ^ @ml@, all mappings created so far
 	-> [Mapping]
 addNodeMappings lns g ml =
