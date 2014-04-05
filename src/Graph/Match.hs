@@ -2,6 +2,7 @@ module Graph.Match
 	(
 	Mapping,
 	findMatches,
+	findMatchesR,
 	isSurjective,
 	isInjective,
 	findIsoMorphisms,
@@ -29,6 +30,13 @@ findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatches l g = 
 	let matches = matchEdges l g 
 	in matches >>= \m -> (matchNodes2 emptyRule l g m)
+
+-- | Given two typed graphs, return a list of mappings, each representing a
+-- possible homomorphism between the graphs.
+findMatchesR :: Rule a b -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findMatchesR r l g = 
+	let matches = matchEdges l g 
+	in matches >>= \m -> (matchNodes2 r l g m)
 
 	
 -- | Insert a node mapping into the given one. If it's already there, do nothing.
@@ -300,6 +308,9 @@ isIsomorphic a b = findIsoMorphisms a b /= []
 newtype NodeCondition a =
 	NodeCondition { condApply :: Node a -> Maybe [NodeCondition a] }
 
+identCond :: NodeCondition a
+identCond =	NodeCondition (\_ -> Just [])
+
 nodeTypeCondGen :: Node a -> NodeCondition a
 nodeTypeCondGen ln =
 	NodeCondition
@@ -312,20 +323,41 @@ danglingCondGen ::
 	Rule a b
 	-> TypedDigraph a b
 	-> Node a 
-	-> TypedDigraph a b
-	-> Mapping
 	-> NodeCondition a
-danglingCondGen = undefined
+danglingCondGen r g ln =
+	if toBeDeleted r ln
+		then NodeCondition
+			(\gn -> if hasEdge g gn
+				then Nothing
+				else Just [])
+		else identCond
 
-identCondGen ::
+delCondGen ::
 	Rule a b
-	-> TypedDigraph a b
 	-> Node a 
-	-> TypedDigraph a b
-	-> Mapping
 	-> NodeCondition a
-identCondGen = undefined
+delCondGen r ln =
+	if toBeDeleted r ln
+		then NodeCondition
+			(\gn ->	Just [NodeCondition
+				(\n -> if gn /= n
+					then Just []
+					else Nothing)])
+		else identCond
 
+toBeDeleted :: Rule a b -> Node a -> Bool
+toBeDeleted r@(Morphism nal _) n =
+	let naction =
+		L.find (\na -> 
+			case na of
+				(Just ln, _) -> ln == n
+				otherwise	 -> False)
+			nal
+	in case naction of
+		Just (_, Nothing)	-> True
+		otherwise			-> False
+
+		
 generateConds ::
 	Rule a b
 	-> TypedDigraph a b
@@ -334,7 +366,9 @@ generateConds ::
 	-> Mapping
 	-> [NodeCondition a]
 generateConds r l ln g m =
-	nodeTypeCondGen ln :
+	nodeTypeCondGen ln	:
+	delCondGen r ln		:
+	danglingCondGen	r g ln :
 	[]
 
 -- | Apply each condition from @nodecl@ to the node @n@. If it satisfies all of
