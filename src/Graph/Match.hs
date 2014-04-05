@@ -29,14 +29,14 @@ emptyRule = Morphism [] []
 findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatches l g = 
 	let matches = matchEdges l g 
-	in matches >>= \m -> (matchNodes2 emptyRule l g m)
+	in matches >>= \m -> (matchNodes emptyRule l g m)
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
 findMatchesR :: Rule a b -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatchesR r l g = 
 	let matches = matchEdges l g 
-	in matches >>= \m -> (matchNodes2 r l g m)
+	in matches >>= \m -> (matchNodes r l g m)
 
 	
 -- | Insert a node mapping into the given one. If it's already there, do nothing.
@@ -193,55 +193,6 @@ matchEdges l@(TypedDigraph dg _) g =
 
 -------------------------------------------------------------------------
 -- Mapping from nodes
-
--- | Given a list of nodes @ln@, a graph @g@ and a specific mapping @m@,
--- return a list of all possible mappings between these nodes and those from
--- graph @g@, taking @m@ as initial mapping.
-addNodeMapping
-	:: [Node a]			-- ^ list of nodes to be mapped
-	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
-	-> Mapping			-- ^ @m@, what already got mapped
-	-> [Mapping]
-addNodeMapping [] g m =
-	[m]
-addNodeMapping (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
-	let 
-		ltype = nodeType ln
-		candidates = filter (\n -> nodeType n == ltype) $ nodes dg
-		newMappings = 
-			fmap (\c -> ((nodeID ln, nodeID c) : nmatch, ematch))
-				candidates
-	in addNodeMappings
-		lns
-		g
-		newMappings
-
--- | Given a list of nodes @ln@, a graph @g@ and a list of partial mappings 
--- @ml@, return a list of all possible mappings between these nodes and those
--- from graph @g@, taking each mapping from @ml@ as initial mapping.
-addNodeMappings
-	:: [Node a]			-- ^ list of nodes to be mapped
-	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
-	-> [Mapping]		-- ^ @ml@, all mappings created so far
-	-> [Mapping]
-addNodeMappings lns g ml =
-	case lns of
-		[] -> ml
-		otherwise -> ml >>= \m -> addNodeMapping lns g m
-
--- | Find all mappings from @l@'s nodes to @g@'s nodes, ignoring those already
--- mapped in @m@, which is the initial mapping for each result.
-matchNodes :: TypedDigraph a b -> TypedDigraph a b -> Mapping -> [Mapping]
-matchNodes l@(TypedDigraph dl _) g m@(nmatches, _) =
-	let lnl = nodes dl							-- all nodes from @l@
-	    mlnl = foldr (\(ln, _) acc ->			-- all "left side" nodes mapped
-			let node = findNode ln dl in
-				case node of
-				(Just n) -> n : acc
-				otherwise -> acc) [] nmatches 
-	    rlnl = lnl L.\\ mlnl					-- list of remaining nodes
-	in addNodeMapping rlnl g m
-
 
 -- | Check if mapping @m@ is surjective. 
 
@@ -413,13 +364,13 @@ mapNodesAux r l lns g ml =
 		[] -> ml
 		otherwise -> ml >>= \m -> mapNodes r l lns g m
 
-matchNodes2 ::
+matchNodes ::
 	Rule a b
 	-> TypedDigraph a b
 	-> TypedDigraph a b
 	-> Mapping
 	-> [Mapping]
-matchNodes2 r l@(TypedDigraph dl _) g m@(nmatches, _) =
+matchNodes r l@(TypedDigraph dl _) g m@(nmatches, _) =
 	let 
 	    lnl = nodes dl							-- all nodes from @l@
 	    mlnl = foldr (\(ln, _) acc ->			-- all "left side" nodes mapped
