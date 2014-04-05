@@ -1,6 +1,6 @@
 module Graph.Match
 	(
-    Mapping,
+	Mapping,
 	findMatches,
 	isSurjective,
 	isInjective,
@@ -20,13 +20,15 @@ import qualified Data.List as L
 -- relation is described as a list of (Int, Int) tuples.
 type Mapping = ([(Int, Int)], [(Int, Int)])
 
+type Rule a b = Morphism a b
+emptyRule = Morphism [] []
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
 findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatches l g = 
 	let matches = matchEdges l g 
-	in matches >>= \m -> (matchNodes l g m)
+	in matches >>= \m -> (matchNodes2 emptyRule l g m)
 
 	
 -- | Insert a node mapping into the given one. If it's already there, do nothing.
@@ -123,7 +125,7 @@ conditionList = [edgeTypeCond, srcTypeCond, tarTypeCond, srcIDCond, tarIDCond,
 	loopCond]
 
 -- | If all conditions in @cl@ get satisfied by the given edge @ge@, return the
--- @m@ Mapping with the new source/target pairs added. 
+-- @m@ mapping with the new edge/nodes added. 
 processEdges
 	:: [Condition a b]
 	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
@@ -180,6 +182,10 @@ matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 matchEdges l@(TypedDigraph dg _) g =
 	applyCondMult (edges dg) l g [([], [])]
 
+
+-------------------------------------------------------------------------
+-- Mapping from nodes
+
 -- | Given a list of nodes @ln@, a graph @g@ and a specific mapping @m@,
 -- return a list of all possible mappings between these nodes and those from
 -- graph @g@, taking @m@ as initial mapping.
@@ -191,16 +197,16 @@ addNodeMapping
 addNodeMapping [] g m =
 	[m]
 addNodeMapping (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
-	let ltype = nodeType ln
-	    candidates = filter (\n -> nodeType n == ltype) $ nodes dg
-	    newMappings = 
-		fmap (\c -> ((nodeID ln, nodeID c) : nmatch, ematch))
-		     candidates
+	let 
+		ltype = nodeType ln
+		candidates = filter (\n -> nodeType n == ltype) $ nodes dg
+		newMappings = 
+			fmap (\c -> ((nodeID ln, nodeID c) : nmatch, ematch))
+				candidates
 	in addNodeMappings
 		lns
 		g
 		newMappings
---addNodeMapping [] _ m = return m
 
 -- | Given a list of nodes @ln@, a graph @g@ and a list of partial mappings 
 -- @ml@, return a list of all possible mappings between these nodes and those
@@ -278,3 +284,119 @@ findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph g
 -- | Check if there's an isomorphism between two graphs.
 isIsomorphic :: TypedDigraph a b -> TypedDigraph a b -> Bool
 isIsomorphic a b = findIsoMorphisms a b /= []
+
+----------------------------------------------------------------------------
+-- Matching functions that process rules
+
+
+-- Trying here a new approach: conditions are generated dynamically and have
+-- a much simpler signature. Previously we had fixed conditions that processed
+-- the edges/nodes and, together with a whole picture from the graph structure,
+-- were able to tell if they satisfied it. Now, this role is played by a
+-- condition generator, a function that, based on whatever it needs from both
+-- graphs and a original node from L graph, returns a function that consumes a 
+-- node and returns a boolean value
+
+newtype NodeCondition a =
+	NodeCondition { condApply :: Node a -> Maybe [NodeCondition a] }
+
+nodeTypeCondGen :: Node a -> NodeCondition a
+nodeTypeCondGen ln =
+	NodeCondition
+	(\n ->
+		if nodeType ln == nodeType n
+			then Just []
+			else Nothing)
+
+danglingCondGen ::
+	Rule a b
+	-> TypedDigraph a b
+	-> Node a 
+	-> TypedDigraph a b
+	-> Mapping
+	-> NodeCondition a
+danglingCondGen = undefined
+
+identCondGen ::
+	Rule a b
+	-> TypedDigraph a b
+	-> Node a 
+	-> TypedDigraph a b
+	-> Mapping
+	-> NodeCondition a
+identCondGen = undefined
+
+generateConds ::
+	Rule a b
+	-> TypedDigraph a b
+	-> Node a 
+	-> TypedDigraph a b
+	-> Mapping
+	-> [NodeCondition a]
+generateConds r l ln g m =
+	nodeTypeCondGen ln :
+	[]
+
+-- | Apply each condition from @nodecl@ to the node @n@. If it satisfies all of
+-- them, return a new set (possibly empty) of new conditions that arose from
+-- the multiple condition applications. Return Nothing otherwise.
+processNode :: [NodeCondition a] -> Node a -> Maybe (Node a, [NodeCondition a])
+processNode nodecl n =
+	iter nodecl [] 
+	where
+		iter [] outcl = Just (n, outcl)
+		iter (c:cl) outcl =
+			let newconds = (condApply c) n
+			in newconds >>= (\nc -> iter cl (outcl ++ nc))
+
+mapNodes ::
+	Rule a b
+	-> TypedDigraph a b
+	-> [Node a]
+	-> TypedDigraph a b
+	-> (Mapping, [NodeCondition a])
+	-> [(Mapping, [NodeCondition a])]
+mapNodes _ _ [] _ m = [m]
+mapNodes r l (ln:lns) g@(TypedDigraph dg _) m@((nmatch, ematch), cl) =
+	let
+		candidates = mapMaybe (processNode cl) $ nodes dg
+		newMappings = fmap
+			(\(gn, newcl) ->
+				(((nodeID ln, nodeID gn) : nmatch, ematch),
+				 newcl))
+			candidates
+	in mapNodesAux r l lns g newMappings
+
+mapNodesAux ::
+	Rule a b
+	-> TypedDigraph a b
+	-> [Node a]
+	-> TypedDigraph a b
+	-> [(Mapping, [NodeCondition a])]
+	-> [(Mapping, [NodeCondition a])]
+mapNodesAux r l lns g ml =
+	case lns of
+		[] -> ml
+		otherwise -> ml >>= \m -> mapNodes r l lns g m
+
+matchNodes2 ::
+	Rule a b
+	-> TypedDigraph a b
+	-> TypedDigraph a b
+	-> Mapping
+	-> [Mapping]
+matchNodes2 r l@(TypedDigraph dl _) g m@(nmatches, _) =
+	let 
+	    lnl = nodes dl							-- all nodes from @l@
+	    mlnl = foldr (\(ln, _) acc ->			-- all "left side" nodes mapped
+			let node = findNode ln dl in
+				case node of
+				(Just n) -> n : acc
+				otherwise -> acc) [] nmatches 
+	    rlnl = lnl L.\\ mlnl					-- list of remaining nodes
+	in case rlnl of
+		[] -> [m]
+		(x:xs) ->
+			let pairs = mapNodes r l (x:xs) g (m, generateConds r l x g m)
+			in fmap (\(mapping, cl) -> mapping) pairs
+
