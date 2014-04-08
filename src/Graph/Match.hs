@@ -283,6 +283,9 @@ danglingCondGen r g ln =
 				else Just [])
 		else identCond
 
+-- | Check if L node will be deleted. If so, return a condition that lets node
+-- to pass the condition, but add's than a condition that guarantees it doesn't
+-- get remapped.
 delCondGen ::
 	Rule a b
 	-> Node a 
@@ -295,6 +298,8 @@ delCondGen r ln =
 					then Just []
 					else Nothing)])
 		else identCond
+
+-- TODO: node's mapped must guarantee that will never be marked to be deleted.
 
 toBeDeleted :: Rule a b -> Node a -> Bool
 toBeDeleted r@(Morphism nal _) n =
