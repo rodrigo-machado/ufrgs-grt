@@ -26,9 +26,10 @@ main = do
     (options, systems) <- parseOptions
     system <- readFile $ head systems
     let (Serialized graphs rules) = unserializeUnit system
-    ss <- runSpaceState (stepsToStop options) (head graphs) rules
+    ss <- runStateSpace (stepsToStop options) (head graphs) rules
     output (outputFormat options) ss
-    return ()
+    forM_ (nodes ss) $ \(Node i t n) ->
+        renderSVG (concat ["state", show i,".svg"]) (Dims 400 600) $ formatGraph $ graph n
 
 unserializeUnit :: String -> Serialized () ()
 unserializeUnit = unserialize

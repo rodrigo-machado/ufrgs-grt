@@ -1,5 +1,6 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 module Graph.StateSpace ( StateSpace (..)
+                        , runStateSpace
                         ) where
 
 import Prelude hiding (Empty)
@@ -30,6 +31,11 @@ ns (Digraph n _) = n
 
 onSnd :: (b -> c) -> (a, b) -> (a, c)
 onSnd f (x, y) = (x, f y)
+
+runStateSpace :: (Eq a, Eq b, MonadIO m) => Int -> TypedDigraph a b -> [Rule a b] -> m (StateSpace a b)
+runStateSpace n g r = buildGraph $ do i <- createNode g 1
+                                      mkStateSpace n i g r
+
 
 mkStateSpace :: (Eq a, Eq b, MonadIO m) => Int -> Int -> TypedDigraph a b -> [Rule a b] -> SSBuilder a b m ()
 mkStateSpace 0 _ _ _ = return ()
