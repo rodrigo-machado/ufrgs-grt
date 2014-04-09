@@ -276,15 +276,15 @@ danglingCondGen ::
 	-> Node a 
 	-> NodeCondition a
 danglingCondGen r g ln =
-	if toBeDeleted r ln
+	if toBeDeleted r (nodeID ln)
 		then NodeCondition
 			(\gn -> if hasEdge g gn
 				then Nothing
 				else Just [])
 		else identCond
 
--- | Check if L node will be deleted. If so, return a condition that lets node
--- to pass the condition, but add's than a condition that guarantees it doesn't
+-- | Check if L node will be deleted. If so, return a condition that lets a node
+-- pass the condition, but add's a condition that guarantees it doesn't
 -- get remapped.
 delCondGen ::
 	Rule a b
@@ -292,15 +292,13 @@ delCondGen ::
 	-> Mapping
 	-> NodeCondition a
 delCondGen r ln m =
-	if toBeDeleted r ln
-		then NodeCondition
-			(\gn ->	if not $ isMapped gn m
-					then Just [NodeCondition
-						(\n -> if gn /= n
-							then Just []
-							else Nothing)]
-					else Nothing)
-		else identCond
+	NodeCondition
+		(\gn ->	if not $ isMapped gn m
+				then Just []
+				else if toBeDeleted r (nodeID ln) == mappedToDel r m gn 
+					then Just []
+				else Nothing)
+	
 
 isMapped :: Node a -> Mapping -> Bool
 isMapped gn ([], _) = False
@@ -312,15 +310,25 @@ isMapped gn (nmaps, _) =
 		
 		
 -- TODO: node's mapped must guarantee that will never be marked to be deleted.
+mappedToDel :: Rule a b -> Mapping -> Node a -> Bool
+mappedToDel r (nmaps, _) n =
+	case nmaps of
+	[] -> False
+	otherwise ->
+		let nmap = L.find (\(_, gnid) -> gnid == nid) nmaps
+		in case nmap of
+			Just (lnid, _) -> toBeDeleted r lnid
+			otherwise -> False
+	where
+		nid = nodeID n
 
-toBeDeleted :: Rule a b -> Node a -> Bool
-toBeDeleted r@(Morphism nal _) n =
-	let naction =
-		L.find (\na -> 
-			case na of
-				(Just ln, _) -> ln == n
-				otherwise	 -> False)
-			nal
+toBeDeleted :: Rule a b -> Int -> Bool
+toBeDeleted r@(Morphism nal _) nid =
+	let naction = L.find (\na -> 
+		case na of
+			(Just ln, _) -> nodeID ln == nid
+			otherwise	 -> False)
+		nal
 	in case naction of
 		Just (_, Nothing)	-> True
 		otherwise			-> False
@@ -348,8 +356,10 @@ processNode nodecl n =
 	where
 		iter [] outcl = Just (n, outcl)
 		iter (c:cl) outcl =
-			let newconds = (condApply c) n
-			in newconds >>= (\nc -> iter cl (outcl ++ nc))
+			let newcond = (condApply c) n
+			in case newcond of
+				Just nc -> iter cl (nc ++ outcl)
+				otherwise -> Nothing
 
 mapNodes ::
 	Rule a b
@@ -359,9 +369,10 @@ mapNodes ::
 	-> (Mapping, [NodeCondition a])
 	-> [(Mapping, [NodeCondition a])]
 mapNodes _ _ [] _ m = [m]
-mapNodes r l (ln:lns) g@(TypedDigraph dg _) m@((nmatch, ematch), cl) =
+mapNodes r l (ln:lns) g@(TypedDigraph dg _) mcl@(m@(nmatch, ematch), cl) =
 	let
-		candidates = mapMaybe (processNode cl) $ nodes dg
+		conds = cl ++ (generateConds r l ln g m)
+		candidates = mapMaybe (processNode conds) $ nodes dg
 		newMappings = fmap
 			(\(gn, newcl) ->
 				(((nodeID ln, nodeID gn) : nmatch, ematch),
@@ -399,6 +410,6 @@ matchNodes r l@(TypedDigraph dl _) g m@(nmatches, _) =
 	in case rlnl of
 		[] -> [m]
 		(x:xs) ->
-			let pairs = mapNodes r l (x:xs) g (m, generateConds r l x g m)
+			let pairs = mapNodes r l (x:xs) g (m, [])
 			in fmap (\(mapping, cl) -> mapping) pairs
 
