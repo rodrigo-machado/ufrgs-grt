@@ -24,6 +24,8 @@ module Graph.Digraph
 	, findNode
 	, source
 	, target
+	, hasEdge
+	, nodeID
 	, edgeID
 	, sourceID
 	, targetID
@@ -172,6 +174,9 @@ target e d =
 	let (Just n ) = findNode (targetID e) d
 	in n
 
+nodeID :: Node a -> Int
+nodeID (Node id _ _) = id
+
 edgeID :: Edge a -> Int
 edgeID (Edge id _ _ _) = id
 
@@ -180,6 +185,15 @@ sourceID (Edge _ (src, _) _ _) = src
 
 targetID :: Edge b -> Int
 targetID (Edge _ (_, tar) _ _) = tar
+
+hasEdge :: TypedDigraph a b -> Node a -> Bool
+hasEdge (TypedDigraph dg _) n =
+	let
+		nid = nodeID n
+		found = L.find (\(Edge _ (s, t) _ _) -> s == nid || t == nid) $ edges dg
+	in case found of
+		Just _ -> True
+		Nothing -> False
 
 ----------------------------------------------------------------------------
 -- | Non-monadic interface
