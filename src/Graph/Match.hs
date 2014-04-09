@@ -260,7 +260,7 @@ newtype NodeCondition a =
 	NodeCondition { condApply :: Node a -> Maybe [NodeCondition a] }
 
 identCond :: NodeCondition a
-identCond =	NodeCondition (\_ -> Just [])
+identCond = NodeCondition (\_ -> Just [])
 
 nodeTypeCondGen :: Node a -> NodeCondition a
 nodeTypeCondGen ln =
@@ -289,16 +289,28 @@ danglingCondGen r g ln =
 delCondGen ::
 	Rule a b
 	-> Node a 
+	-> Mapping
 	-> NodeCondition a
-delCondGen r ln =
+delCondGen r ln m =
 	if toBeDeleted r ln
 		then NodeCondition
-			(\gn ->	Just [NodeCondition
-				(\n -> if gn /= n
-					then Just []
-					else Nothing)])
+			(\gn ->	if not $ isMapped gn m
+					then Just [NodeCondition
+						(\n -> if gn /= n
+							then Just []
+							else Nothing)]
+					else Nothing)
 		else identCond
 
+isMapped :: Node a -> Mapping -> Bool
+isMapped gn ([], _) = False
+isMapped gn (nmaps, _) =
+	let	found = L.find (\(_, gnode) -> gnode == nodeID gn) nmaps
+	in case found of
+		Just _ -> True
+		otherwise -> False
+		
+		
 -- TODO: node's mapped must guarantee that will never be marked to be deleted.
 
 toBeDeleted :: Rule a b -> Node a -> Bool
@@ -323,7 +335,7 @@ generateConds ::
 	-> [NodeCondition a]
 generateConds r l ln g m =
 	nodeTypeCondGen ln	:
-	delCondGen r ln		:
+	delCondGen r ln	m	:
 	danglingCondGen	r g ln :
 	[]
 
