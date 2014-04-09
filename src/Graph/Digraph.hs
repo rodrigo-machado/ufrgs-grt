@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 module Graph.Digraph 
 	( Edge (..)
 	, Node (..)
@@ -7,6 +8,7 @@ module Graph.Digraph
 	, empty
 	, node
 	, edge
+    , Element (..)
 	, addNode
 	, addEdge
 	, removeNode
@@ -63,6 +65,23 @@ instance PrettyPrint a => PrettyPrint (Node a) where
 instance PrettyPrint a => PrettyPrint (Edge a) where
     prettyPrint (Edge i (s, t) tp p) = concat [show s, "->", show t, " (", show tp, ")"]
 
+class Element a where
+    type Payload a :: *
+    payload :: a -> Payload a
+    elemId :: a -> Int
+    typeId :: a -> Int
+
+instance Element (Node a) where
+    type Payload (Node a) = a
+    payload (Node _ _ q) = q
+    elemId (Node i _ _) = i
+    typeId (Node _ t _) = t
+
+instance Element (Edge a) where
+    type Payload (Edge a) = a
+    payload (Edge _ _ _ q) = q
+    elemId (Edge i _ _ _) = i
+    typeId (Edge _ _ t _) = t
 
 data Digraph a b = Digraph (IntMap (Node a)) (IntMap (Edge b)) deriving (Show, Read, Eq)
 
@@ -219,6 +238,9 @@ type NodeAction a = (Maybe (Node a), Maybe (Node a))
 type EdgeAction a = (Maybe (Edge a), Maybe (Edge a))
 
 data Morphism a b = Morphism [NodeAction a] [EdgeAction b] deriving (Show,Read)
+
+instance (PrettyPrint a, PrettyPrint b) => PrettyPrint (Morphism a b) where
+    prettyPrint (Morphism a b) = unlines [prettyPrint a, ";", prettyPrint b]
 
 showMorphism (Morphism nal eal) = 
 	"\nNode mappings:\n"
