@@ -6,7 +6,8 @@ module Graph.Match
 	isSurjective,
 	isInjective,
 	findIsoMorphisms,
-    isIsomorphic
+    isIsomorphic,
+	MorphismType (..)
 	)
 	where
 
@@ -24,17 +25,19 @@ type Mapping = ([(Int, Int)], [(Int, Int)])
 type Rule a b = Morphism a b
 emptyRule = Morphism [] []
 
--- | Given two typed graphs, return a list of mappings, each representing a
--- possible homomorphism between the graphs.
-findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
-findMatches l g = 
-	findMatchesR emptyRule l g
+data MorphismType = Normal | Monomorphic | Epimorphic | Isomorphic 
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
-findMatchesR :: Rule a b -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
-findMatchesR r l g = 
-	matchGraphs r l g
+findMatches :: MorphismType -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findMatches mt l g = 
+	findMatchesR emptyRule mt l g
+
+-- | Given two typed graphs, return a list of mappings, each representing a
+-- possible homomorphism between the graphs.
+findMatchesR :: Rule a b -> MorphismType -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findMatchesR r mt l g = 
+	matchGraphs r mt l g
 
 ----------------------------------------------------------------------------
 -- Edge related condition functions
@@ -249,23 +252,28 @@ processNode cl n =
 -- from graph @g@, taking @m@ as initial mapping.
 mapGraphs
 	:: Rule a b
+	-> MorphismType
 	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
 	-> (Mapping, TypedDigraph a b, [Edge b], [Node a]) -- ^ @m@, what already got mapped
 	-> [(Mapping, TypedDigraph a b, [Edge b], [Node a])]
-mapGraphs _ _ ml@(_, _, _, []) = [ml]
-mapGraphs r l (m@(nmatch, ematch),
+mapGraphs _ _ _ ml@(_, _, _, []) = [ml]
+mapGraphs r mt l (m@(nmatch, ematch),
 	g@(TypedDigraph dg@(Digraph gnm gem) tg),
 	(le:les), lns) =
 	let
 		conds = generateEdgeConds l le g m
-		candidates = filter (processEdge conds) $ edges dg
+		edgeList = case mt of
+			Monomorphic -> les
+			Isomorphic -> les
+			otherwise -> edges dg
+		candidates = filter (processEdge conds) $ edgeList
 		newMappings = fmap
 			(\ge ->
 				let
 					sid = sourceID ge
 					tid = targetID ge
 					eid = edgeID ge
-					newNodeList = L.filter (\n ->
+					newLNodeList = L.filter (\n ->
 						let nid = nodeID n
 						in nid /= sid && nid /= tid && nid /= eid)
 						lns
@@ -274,14 +282,16 @@ mapGraphs r l (m@(nmatch, ematch),
 				  (targetID le, tid) :
 				  nmatch,
 				  (edgeID le, eid) : ematch),
-				 TypedDigraph (Digraph (IM.delete sid $ IM.delete tid gnm)
-									   (IM.delete eid gem))
-							  tg,
+				 case mt of
+				 Monomorphic -> TypedDigraph (Digraph (IM.delete sid $ IM.delete tid gnm)
+													  (IM.delete eid gem))
+							  	tg
+				 otherwise -> g,
 			 	 les,
-				 newNodeList))
+				 newLNodeList))
 			candidates
-	in newMappings >>= mapGraphs r l
-mapGraphs r l (m@(nmatch, ematch),
+	in newMappings >>= mapGraphs r mt l
+mapGraphs r mt l (m@(nmatch, ematch),
 	g@(TypedDigraph dg@(Digraph gnm gem) tg),
 	[], (ln:lns)) =
 	let
@@ -292,17 +302,19 @@ mapGraphs r l (m@(nmatch, ematch),
 				let gid = nodeID gn
 				in
 				(((nodeID ln, gid) : nmatch, ematch),
-				 TypedDigraph (Digraph (IM.delete gid gnm) gem) tg,
+				 case mt of
+				 Monomorphic -> TypedDigraph (Digraph (IM.delete gid gnm) gem) tg
+				 otherwise   -> g,
 				 [], lns))
 			candidates
-	in newMappings >>= mapGraphs r l
+	in newMappings >>= mapGraphs r mt l
 
 
 -- | Given two typed graph's, return a list of all possible mappings
 -- considering only the subgraph inducted by the edges.
-matchGraphs :: Rule a b -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
-matchGraphs r l@(TypedDigraph dg _) g =
-	map (\(m, _, _, _) -> m) $ mapGraphs r l (([], []), g, edges dg, nodes dg)
+matchGraphs :: Rule a b -> MorphismType -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+matchGraphs r mt l@(TypedDigraph dg _) g =
+	map (\(m, _, _, _) -> m) $ mapGraphs r mt l (([], []), g, edges dg, nodes dg)
 
 
 
@@ -353,7 +365,7 @@ findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph g
 	then []
 	else filter isInjective $
 		 	filter (isSurjective g) $
-		 		findMatches l g
+		 		findMatches Isomorphic l g
 
 -- | Check if there's an isomorphism between two graphs.
 isIsomorphic :: TypedDigraph a b -> TypedDigraph a b -> Bool
