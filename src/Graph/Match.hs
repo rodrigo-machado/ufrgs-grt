@@ -28,21 +28,16 @@ emptyRule = Morphism [] []
 -- possible homomorphism between the graphs.
 findMatches :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatches l g = 
-	let matches = matchEdges l g 
-	in matches >>= \m -> (matchNodes emptyRule l g m)
+	findMatchesR emptyRule l g
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
 findMatchesR :: Rule a b -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
 findMatchesR r l g = 
-	let matches = matchEdges l g 
-	in matches >>= \m -> (matchNodes r l g m)
+	matchGraphs r l g
 
--- Condition Generators
--- This functions are meant to be called from another one that has access to a 
--- global picture from the graph morphism structures (Rule, L graph, G Graph,
--- node from L being mapped etc.). They generate NodeConditions to be applied
--- to nodes from the G graph.
+----------------------------------------------------------------------------
+-- Edge related condition functions
 
 -- An EdgeCondition checks if a node satisfies it's internal requirements.
 type EdgeCondition b = Edge b -> Bool
@@ -146,51 +141,8 @@ processEdge :: [EdgeCondition b] -> Edge b -> Bool
 processEdge cl e =
 	L.foldr (\c acc -> (c e) && acc) True cl 
 
--- | Given a list of edges from @l@ to be matched and a specific mapping @m@, 
--- return a list of all possible mappings between these edges and those
--- from graph @g@, taking @m@ as initial mapping.
-mapEdges
-	:: TypedDigraph a b	-- ^ @l@, the "left side" graph
-	-> [Edge b]			-- ^ list of edges to be mapped
-	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
-	-> Mapping			-- ^ @m@, what already got mapped
-	-> [Mapping]
-mapEdges l (le:les) g@(TypedDigraph dg _) m@(nmatch, ematch) =
-	let
-		conds = generateEdgeConds l le g m
-		candidates = filter (processEdge conds) $ edges dg
-		newMappings = fmap
-			(\ge ->
-				((sourceID le, sourceID ge) :
-				 (targetID le, targetID ge) :
-				 nmatch,
-				 (edgeID le, edgeID ge) : ematch))
-			candidates
-	in mapEdgesAux l les g newMappings
-
--- | Given a list of edges from graph @l@ and a list of partial mappings @ml@, 
--- return a list of all possible mappings between these edges and those
--- from graph @g@, taking each mapping from @ml@ as initial mapping.
-mapEdgesAux
-	:: TypedDigraph a b	-- ^ @l@, the "left side" graph
-	-> [Edge b]			-- ^ list of edges to be mapped
-	-> TypedDigraph a b	-- ^ @g@, the "right side" graph
-	-> [Mapping]		-- ^ @ml@, all mappings created so far
-	-> [Mapping]
-mapEdgesAux l@(TypedDigraph d _) les g ml =
-	case les of
-		[] -> ml
-		otherwise -> ml >>= \m -> mapEdges l les g m
-
--- | Given two typed graph's, return a list of all possible mappings
--- considering only the subgraph inducted by the edges.
-matchEdges :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
-matchEdges l@(TypedDigraph dg _) g =
-	mapEdgesAux l (edges dg) g [([], [])]
-
-
 -------------------------------------------------------------------------
--- Matching from nodes
+-- Node related condition functions
 
 -- A NodeCondition checks if a node satisfies it's internal requirements.
 type NodeCondition a = Node a -> Bool
@@ -289,66 +241,70 @@ processNode cl n =
 	L.foldr (\c acc -> (c n) && acc) True cl
 	
 		
--- | Given a list of nodes from @l@ to be matched and a specific mapping @m@, 
--- return a list of all possible mappings between these nodes and those
--- from graph @g@, taking @m@ as initial mapping.
+----------------------------------------------------------------------------
+-- The matching algorithm
 
--- mapNodes finds the matching @gn@ nodes to each @ln@ by filtering them with
--- a list of conditions generated for each given @ln@.
-mapNodes ::
-	Rule a b
-	-> TypedDigraph a b
-	-> [Node a]
-	-> TypedDigraph a b
-	-> Mapping
-	-> [Mapping]
-mapNodes _ _ [] _ m = [m]
-mapNodes r l (ln:lns) g@(TypedDigraph dg _) m@(nmatch, ematch) =
+-- | Given a list of edges from @l@ to be matched and a specific mapping @m@, 
+-- return a list of all possible mappings between these edges and those
+-- from graph @g@, taking @m@ as initial mapping.
+mapGraphs
+	:: Rule a b
+	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
+	-> (Mapping, TypedDigraph a b, [Edge b], [Node a]) -- ^ @m@, what already got mapped
+	-> [(Mapping, TypedDigraph a b, [Edge b], [Node a])]
+mapGraphs _ _ ml@(_, _, _, []) = [ml]
+mapGraphs r l (m@(nmatch, ematch),
+	g@(TypedDigraph dg@(Digraph gnm gem) tg),
+	(le:les), lns) =
+	let
+		conds = generateEdgeConds l le g m
+		candidates = filter (processEdge conds) $ edges dg
+		newMappings = fmap
+			(\ge ->
+				let
+					sid = sourceID ge
+					tid = targetID ge
+					eid = edgeID ge
+					newNodeList = L.filter (\n ->
+						let nid = nodeID n
+						in nid /= sid && nid /= tid && nid /= eid)
+						lns
+				in
+				(((sourceID le, sid) :
+				  (targetID le, tid) :
+				  nmatch,
+				  (edgeID le, eid) : ematch),
+				 TypedDigraph (Digraph (IM.delete sid $ IM.delete tid gnm)
+									   (IM.delete eid gem))
+							  tg,
+			 	 les,
+				 newNodeList))
+			candidates
+	in newMappings >>= mapGraphs r l
+mapGraphs r l (m@(nmatch, ematch),
+	g@(TypedDigraph dg@(Digraph gnm gem) tg),
+	[], (ln:lns)) =
 	let
 		conds = (generateConds r l ln g m)
 		candidates = filter (processNode conds) $ nodes dg
 		newMappings = fmap
 			(\gn ->
-				((nodeID ln, nodeID gn) : nmatch, ematch))
+				let gid = nodeID gn
+				in
+				(((nodeID ln, gid) : nmatch, ematch),
+				 TypedDigraph (Digraph (IM.delete gid gnm) gem) tg,
+				 [], lns))
 			candidates
-	in mapNodesAux r l lns g newMappings
+	in newMappings >>= mapGraphs r l
 
--- | Given a list of nodes from graph @l@ and a list of partial mappings @ml@, 
--- return a list of all possible mappings between these nodes and those
--- from graph @g@, taking each mapping from @ml@ as initial mapping.
-mapNodesAux ::
-	Rule a b
-	-> TypedDigraph a b
-	-> [Node a]
-	-> TypedDigraph a b
-	-> [Mapping]
-	-> [Mapping]
-mapNodesAux r l lns g ml =
-	case lns of
-		[] -> ml
-		otherwise -> ml >>= \m -> mapNodes r l lns g m
 
--- | Meant to be called after a matchEdges process, takes the list of nodes
--- from L that didn't get mapped and return all possible mappings between them
--- and the nodes from G, each taking @m@ as starting point.
-matchNodes ::
-	Rule a b
-	-> TypedDigraph a b
-	-> TypedDigraph a b
-	-> Mapping
-	-> [Mapping]
-matchNodes r l@(TypedDigraph dl _) g m@(nmatches, _) =
-	let 
-	    lnl = nodes dl							-- all nodes from @l@
-	    mlnl = foldr (\(ln, _) acc ->			-- all "left side" nodes mapped
-			let node = findNode ln dl in
-				case node of
-				(Just n) -> n : acc
-				otherwise -> acc) [] nmatches 
-	    rlnl = lnl L.\\ mlnl					-- list of remaining nodes
-	in case rlnl of
-		[] -> [m]
-		(x:xs) -> mapNodes r l (x:xs) g m
+-- | Given two typed graph's, return a list of all possible mappings
+-- considering only the subgraph inducted by the edges.
+matchGraphs :: Rule a b -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+matchGraphs r l@(TypedDigraph dg _) g =
+	map (\(m, _, _, _) -> m) $ mapGraphs r l (([], []), g, edges dg, nodes dg)
+
+
 
 ------------------------------------------------------------------------
 -- Isomorphism related (helper) functions
