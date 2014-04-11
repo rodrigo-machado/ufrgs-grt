@@ -13,7 +13,7 @@ module Graph.Builder.Digraph ( module Graph.Digraph
                              , getS
                              , putS
                              ) where
-import Prelude hiding (null,lookup,member)
+import Prelude hiding (null,lookup,elem)
 
 import Control.Monad.State
 import Control.Monad.Identity
