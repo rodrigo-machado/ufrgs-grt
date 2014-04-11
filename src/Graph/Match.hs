@@ -26,6 +26,7 @@ type Rule a b = Morphism a b
 emptyRule = Morphism [] []
 
 data MorphismType = Normal | Monomorphic | Epimorphic | Isomorphic 
+	deriving (Eq)
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
@@ -282,11 +283,11 @@ mapGraphs r mt l (m@(nmatch, ematch),
 				  (targetID le, tid) :
 				  nmatch,
 				  (edgeID le, eid) : ematch),
-				 case mt of
-				 Monomorphic -> TypedDigraph (Digraph (IM.delete sid $ IM.delete tid gnm)
-													  (IM.delete eid gem))
-							  	tg
-				 otherwise -> g,
+				if mt == Normal
+				then g
+				else TypedDigraph (Digraph (IM.delete sid $ IM.delete tid gnm)
+					 			  		   (IM.delete eid gem))
+							  	tg,
 			 	 les,
 				 newLNodeList))
 			candidates
@@ -302,9 +303,9 @@ mapGraphs r mt l (m@(nmatch, ematch),
 				let gid = nodeID gn
 				in
 				(((nodeID ln, gid) : nmatch, ematch),
-				 case mt of
-				 Monomorphic -> TypedDigraph (Digraph (IM.delete gid gnm) gem) tg
-				 otherwise   -> g,
+				 if mt == Normal
+				 then g
+				 else TypedDigraph (Digraph (IM.delete gid gnm) gem) tg,
 				 [], lns))
 			candidates
 	in newMappings >>= mapGraphs r mt l
