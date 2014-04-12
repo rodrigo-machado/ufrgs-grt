@@ -21,7 +21,8 @@ import qualified Data.Set as S
 -- | Is a tuple of two relations regarding two graphs (possibly equal):
 -- the first among their respective nodes, the other among their edges. Each
 -- relation is described as a list of (Int, Int) tuples.
-type Mapping = (S.Set (Int, Int), S.Set (Int, Int))
+type Mapping = ([(Int, Int)], [(Int, Int)])
+type MapSet = (S.Set (Int, Int), S.Set (Int, Int))
 
 type Rule a b = D.Morphism a b
 emptyRule = D.Morphism [] []
@@ -39,7 +40,8 @@ findMatches mt l g =
 -- possible homomorphism between the graphs.
 findMatchesR :: Rule a b -> MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [Mapping]
 findMatchesR r mt l g = 
-	matchGraphs r mt l g
+	let matches = matchGraphs r mt l g
+	in map (\(nm, em) -> (S.toList nm, S.toList em)) matches
 
 ----------------------------------------------------------------------------
 -- D.Edge related condition functions
@@ -69,7 +71,7 @@ tarTypeCondGen l le g =
 -- occur in @m@, any @ge@ will satisfy this condition.
 srcIDCondGen
 	:: D.Edge b
-	-> Mapping
+	-> MapSet
 	-> EdgeCondition b
 srcIDCondGen le m@(nmatches, _) =
 	(\ge ->
@@ -94,7 +96,7 @@ srcIDCondGen le m@(nmatches, _) =
 -- doesn't occur in @m@, any @ge@ will satisfy this condition.
 tarIDCondGen
 	:: D.Edge b
-	-> Mapping
+	-> MapSet
 	-> EdgeCondition b
 tarIDCondGen le m@(nmatches, _) =
 	(\ge -> 
@@ -137,7 +139,7 @@ generateEdgeConds
 	:: D.TypedDigraph a b
 	-> D.Edge b 
 	-> D.TypedDigraph a b
-	-> Mapping
+	-> MapSet
 	-> [EdgeCondition b]
 generateEdgeConds l le g m =
 	edgeTypeCondGen le	:
@@ -190,7 +192,7 @@ danglingCondGen r g ln =
 delCondGen ::
 	Rule a b
 	-> D.Node a 
-	-> Mapping
+	-> MapSet
 	-> NodeCondition a
 delCondGen r ln m =
 	(\gn ->	(not $ isMapped gn m) ||
@@ -198,7 +200,7 @@ delCondGen r ln m =
 	
 
 -- | Check if @gn@ is a right-side node in the given mapping.
-isMapped :: D.Node a -> Mapping -> Bool
+isMapped :: D.Node a -> MapSet -> Bool
 isMapped gn (nmaps, _) =
 	let	found = S.filter (\(_, gnode) -> gnode == D.nodeID gn) nmaps
 	in if S.null found
@@ -207,7 +209,7 @@ isMapped gn (nmaps, _) =
 		
 		
 -- | Check if @n@ was mapped to a L node marked to be deleted.
-mappedToDel :: Rule a b -> Mapping -> D.Node a -> Bool
+mappedToDel :: Rule a b -> MapSet -> D.Node a -> Bool
 mappedToDel r (nmaps, _) n =
 	let nmap = S.filter (\(lnid, gnid) ->
 			gnid == nid && toBeDeleted r lnid)
@@ -236,7 +238,7 @@ generateConds ::
 	-> D.TypedDigraph a b
 	-> D.Node a 
 	-> D.TypedDigraph a b
-	-> Mapping
+	-> MapSet
 	-> [NodeCondition a]
 generateConds r l ln g m =
 	nodeTypeCondGen ln	:
@@ -261,8 +263,8 @@ mapGraphs
 	:: Rule a b
 	-> MorphismType
 	-> D.TypedDigraph a b	-- ^ @l@, the "left side" graph
-	-> (Mapping, D.TypedDigraph a b, [D.Edge b], [D.Node a]) -- ^ @m@, what already got mapped
-	-> [(Mapping, D.TypedDigraph a b, [D.Edge b], [D.Node a])]
+	-> (MapSet, D.TypedDigraph a b, [D.Edge b], [D.Node a]) -- ^ @m@, what already got mapped
+	-> [(MapSet, D.TypedDigraph a b, [D.Edge b], [D.Node a])]
 mapGraphs _ mt _ ml@((nmap, emap), D.TypedDigraph dg@(D.Digraph gnm gem) _, _, []) =
 	case mt of
 	Epi -> if S.size nmap == IM.size gnm && S.size emap == IM.size gem
@@ -279,7 +281,7 @@ mapGraphs r mt l (m@(nmatch, ematch),
 		conds = generateEdgeConds l le g m
 		edgeList = D.edges dg
 		candidates = filter (processEdge conds) $ edgeList
-		newMappings = fmap
+		newMapSets = fmap
 			(\ge ->
 				let
 					sid = D.sourceID ge
@@ -302,14 +304,14 @@ mapGraphs r mt l (m@(nmatch, ematch),
 			 	les,
 				newLNodeList))
 			candidates
-	in newMappings >>= mapGraphs r mt l
+	in newMapSets >>= mapGraphs r mt l
 mapGraphs r mt l (m@(nmatch, ematch),
 	g@(D.TypedDigraph dg@(D.Digraph gnm gem) tg),
 	[], (ln:lns)) =
 	let
 		conds = (generateConds r l ln g m)
 		candidates = filter (processNode conds) $ D.nodes dg
-		newMappings = fmap
+		newMapSets = fmap
 			(\gn ->
 				let gid = D.nodeID gn
 				in
@@ -319,13 +321,13 @@ mapGraphs r mt l (m@(nmatch, ematch),
 				 else D.TypedDigraph (D.Digraph (IM.delete gid gnm) gem) tg,
 				 [], lns))
 			candidates
-	in newMappings >>= mapGraphs r mt l
+	in newMapSets >>= mapGraphs r mt l
 
 
 
 -- | Given two typed graph's, return a list of all possible mappings
 -- considering only the subgraph inducted by the edges.
-matchGraphs :: Rule a b -> MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [Mapping]
+matchGraphs :: Rule a b -> MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [MapSet]
 matchGraphs r mt l@(D.TypedDigraph dl _) g =
 	map (\(m, _, _, _) -> m ) $ mapGraphs r mt l ((S.empty, S.empty), g, D.edges dl, D.nodes dl)
 
@@ -339,7 +341,7 @@ matchGraphs r mt l@(D.TypedDigraph dl _) g =
 -- mapped in @m@. The number of elements in this set is compared to those from
 -- graph @g@ to see if all got mapped.
 -- TODO: use Data.Set for efficiency reasons.
-isSurjective :: D.TypedDigraph a b -> Mapping -> Bool
+isSurjective :: D.TypedDigraph a b -> MapSet -> Bool
 isSurjective (D.TypedDigraph (D.Digraph gnm gem) _) m@(nmaps, emaps) =
 	IM.size gnm == S.size nmaps && IM.size gem == S.size emaps
 
@@ -351,7 +353,7 @@ isSurjective (D.TypedDigraph (D.Digraph gnm gem) _) m@(nmaps, emaps) =
 -- side" node/edge got mapped twice, with help of @mem@ that "remembers" the
 -- node/edges scanned so far.
 {-
-isInjective :: Mapping -> Bool
+isInjective :: MapSet -> Bool
 isInjective ([], []) = True
 isInjective (nms, ems) =
 	iter nms [] &&
