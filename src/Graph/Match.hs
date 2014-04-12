@@ -1,13 +1,13 @@
 module Graph.Match
 	(
-	Mapping,
-	findMatches,
-	findMatchesR,
-	isSurjective,
-	--isInjective,
-	findIsoMorphisms,
-    isIsomorphic,
-	MorphismType (..)
+	Mapping
+	, findMatches
+	, findMatchesR
+	, isSurjective
+	--, isInjective
+	, findIsoMorphisms
+    , isIsomorphic
+	, MorphismType (..)
 	)
 	where
 
