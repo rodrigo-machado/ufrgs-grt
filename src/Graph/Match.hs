@@ -203,10 +203,7 @@ delCondGen r ln m =
 isMapped :: D.Node a -> MapSet -> Bool
 isMapped gn (nmaps, _) =
 	let	found = S.filter (\(_, gnode) -> gnode == D.nodeID gn) nmaps
-	in if S.null found
-		then True
-		else False
-		
+	in S.null found
 		
 -- | Check if @n@ was mapped to a L node marked to be deleted.
 mappedToDel :: Rule a b -> MapSet -> D.Node a -> Bool
@@ -267,7 +264,11 @@ mapGraphs
 	-> [(MapSet, D.TypedDigraph a b, [D.Edge b], [D.Node a])]
 mapGraphs _ mt _ ml@((nmap, emap), D.TypedDigraph dg@(D.Digraph gnm gem) _, _, []) =
 	case mt of
-	Epi -> if S.size nmap == IM.size gnm && S.size emap == IM.size gem
+	Epi -> let
+		gMappedNodes = S.fold (\(ln, gn) acc -> S.insert gn acc) S.empty nmap
+		gMappedEdges = S.fold (\(le, ge) acc -> S.insert ge acc) S.empty emap
+		in 
+		if S.size gMappedNodes == IM.size gnm && S.size gMappedEdges == IM.size gem
 			then [ml]
 			else []
 	Iso -> if D.nullG dg
@@ -319,7 +320,8 @@ mapGraphs r mt l (m@(nmatch, ematch),
 				 if mt == Normal || mt == Epi
 				 then g
 				 else D.TypedDigraph (D.Digraph (IM.delete gid gnm) gem) tg,
-				 [], lns))
+				 [],
+				 lns))
 			candidates
 	in newMapSets >>= mapGraphs r mt l
 
