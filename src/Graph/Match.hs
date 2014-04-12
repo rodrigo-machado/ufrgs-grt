@@ -121,8 +121,8 @@ tarIDCondGen le m@(nmatches, _) =
 -- so they aren't able to detect a mapping node in the current step. 
 -- Without @loopCond@, a loop edge that, e.g., happens to be the first to be
 -- mapped passes srcIDCond and tarIDCond.
-loopCondGen :: D.TypedDigraph a b -> D.Edge b -> D.TypedDigraph a b -> EdgeCondition b
-loopCondGen l le g =
+loopCondGen :: D.Edge b -> EdgeCondition b
+loopCondGen le =
 	(\ge ->
 		let
 			lsrc = D.sourceID le
@@ -143,11 +143,11 @@ generateEdgeConds
 	-> [EdgeCondition b]
 generateEdgeConds l le g m =
 	edgeTypeCondGen le	:
-	srcTypeCondGen l le g :
-	tarTypeCondGen l le g :
+	--srcTypeCondGen l le g :
+	--tarTypeCondGen l le g :
 	srcIDCondGen le m :
 	tarIDCondGen le m :
-	loopCondGen l le g :
+	loopCondGen le :
 	[]
 
 
@@ -261,7 +261,7 @@ mapGraphs
 	-> D.TypedDigraph a b	-- ^ @l@, the "left side" graph
 	-> (MapSet, D.TypedDigraph a b, [D.Edge b], [D.Node a]) -- ^ @m@, what already got mapped
 	-> [(MapSet, D.TypedDigraph a b, [D.Edge b], [D.Node a])]
-mapGraphs _ mt _ ml@((nmap, emap), D.TypedDigraph dg@(D.Digraph gnm gem) _, _, []) =
+mapGraphs _ mt _ ml@((nmap, emap), D.TypedDigraph dg@(D.Digraph gnm gem) _, [], []) =
 	case mt of
 	Epi -> let
 		gMappedNodes = S.fold (\(ln, gn) acc -> S.insert gn acc) S.empty nmap
