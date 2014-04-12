@@ -197,13 +197,12 @@ delCondGen ::
 delCondGen r ln m =
 	(\gn ->	(not $ isMapped gn m) ||
 			(toBeDeleted r (D.nodeID ln) == mappedToDel r m gn))
-	
 
 -- | Check if @gn@ is a right-side node in the given mapping.
 isMapped :: D.Node a -> MapSet -> Bool
 isMapped gn (nmaps, _) =
 	let	found = S.filter (\(_, gnode) -> gnode == D.nodeID gn) nmaps
-	in S.null found
+	in not $ S.null found
 		
 -- | Check if @n@ was mapped to a L node marked to be deleted.
 mappedToDel :: Rule a b -> MapSet -> D.Node a -> Bool
