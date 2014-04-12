@@ -6,6 +6,7 @@ module Graph.Digraph
 	, Morphism (..)
 	, EdgeAction (..)
 	, empty
+	, nullG
 	, node
 	, edge
     , Element (..)
@@ -101,6 +102,10 @@ type TGraph a b = Digraph a b
 
 empty :: Digraph a b
 empty = Digraph (IM.empty) (IM.empty)
+
+nullG :: Digraph a b -> Bool
+nullG (Digraph nm em) =
+	IM.null nm && IM.null em
 
 node :: Int -> Digraph a b -> Maybe (Node a)
 node i (Digraph n _) = IM.lookup i n

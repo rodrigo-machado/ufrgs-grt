@@ -4,7 +4,7 @@ module Graph.Match
 	findMatches,
 	findMatchesR,
 	isSurjective,
-	isInjective,
+	--isInjective,
 	findIsoMorphisms,
     isIsomorphic,
 	MorphismType (..)
@@ -13,93 +13,103 @@ module Graph.Match
 
 import Control.Monad -- foldM
 import Data.Maybe
-import Graph.Digraph
+import qualified Graph.Digraph as D
 import qualified Data.IntMap as IM
 import qualified Data.List as L
+import qualified Data.Set as S
 
 -- | Is a tuple of two relations regarding two graphs (possibly equal):
 -- the first among their respective nodes, the other among their edges. Each
 -- relation is described as a list of (Int, Int) tuples.
-type Mapping = ([(Int, Int)], [(Int, Int)])
+type Mapping = (S.Set (Int, Int), S.Set (Int, Int))
 
-type Rule a b = Morphism a b
-emptyRule = Morphism [] []
+type Rule a b = D.Morphism a b
+emptyRule = D.Morphism [] []
 
-data MorphismType = Normal | Monomorphic | Epimorphic | Isomorphic 
+data MorphismType = Normal | Mono | Epi | Iso 
 	deriving (Eq)
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
-findMatches :: MorphismType -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findMatches :: MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [Mapping]
 findMatches mt l g = 
 	findMatchesR emptyRule mt l g
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
-findMatchesR :: Rule a b -> MorphismType -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
+findMatchesR :: Rule a b -> MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [Mapping]
 findMatchesR r mt l g = 
 	matchGraphs r mt l g
 
 ----------------------------------------------------------------------------
--- Edge related condition functions
+-- D.Edge related condition functions
 
 -- An EdgeCondition checks if a node satisfies it's internal requirements.
-type EdgeCondition b = Edge b -> Bool
+type EdgeCondition b = D.Edge b -> Bool
 
 -- | Generate an edge condition that checks if both edges are from same type.
-edgeTypeCondGen :: Edge b -> EdgeCondition b
-edgeTypeCondGen le = (\ge -> edgeType le == edgeType ge)
+edgeTypeCondGen :: D.Edge b -> EdgeCondition b
+edgeTypeCondGen le = (\ge -> D.edgeType le == D.edgeType ge)
 
 -- | Generate an edge condition that checks if @le@ and @ge@ have source nodes 
 -- from same type.
-srcTypeCondGen :: TypedDigraph a b -> Edge b -> TypedDigraph a b -> EdgeCondition b
+srcTypeCondGen :: D.TypedDigraph a b -> D.Edge b -> D.TypedDigraph a b -> EdgeCondition b
 srcTypeCondGen l le g =
-	(\ge -> srcType le l == srcType ge g)
+	(\ge -> D.srcType le l == D.srcType ge g)
 
 -- | Generate an edge condition that checks if @le@ and @ge@ have target nodes 
 -- from same type.
-tarTypeCondGen :: TypedDigraph a b -> Edge b -> TypedDigraph a b -> EdgeCondition b
+tarTypeCondGen :: D.TypedDigraph a b -> D.Edge b -> D.TypedDigraph a b -> EdgeCondition b
 tarTypeCondGen l le g =
-	(\ge -> tarType le l == tarType ge g)
+	(\ge -> D.tarType le l == D.tarType ge g)
 
 -- | Generate a condition that tests if @le@'s source already occurs in @m@.
 -- If that's the case, check if @ge@'s source is the same node to which @le@'s
--- source got mapped.  If so, @ge@ is a matching Edge. If @le@'s source doesn't
+-- source got mapped.  If so, @ge@ is a matching D.Edge. If @le@'s source doesn't
 -- occur in @m@, any @ge@ will satisfy this condition.
 srcIDCondGen
-	:: TypedDigraph a b
-	-> Edge b
-	-> TypedDigraph a b
+	:: D.Edge b
 	-> Mapping
 	-> EdgeCondition b
-srcIDCondGen l le g m@(nmatches, _) =
+srcIDCondGen le m@(nmatches, _) =
 	(\ge ->
 		let
-			lsrc = sourceID le
-			gsrc = sourceID ge
-			matched = (\(s, t) -> s == lsrc) `L.find` nmatches
+			lsrc = D.sourceID le
+			gsrc = D.sourceID ge
+			matched = L.find (\(s, t) -> s == lsrc) $ S.toList nmatches
 		in case matched of	
 			Just (_, n) -> gsrc == n
 			otherwise -> True)
 
+{-
+			matched = S.toList $ S.filter (\(s, t) -> s == lsrc) S.toList nmatches
+		in case matched of
+			((_, n):ns) -> gsrc == n
+			otherwise   -> True)
+-}
+
 -- | Generate an edge condition that tests if @le@'s target already occurs in
 -- @m@. If that's the case, check if @ge@'s target is the same node to which
--- @le@'s target got mapped.  If so, @ge@ is a matching Edge. If @le@'s target
+-- @le@'s target got mapped.  If so, @ge@ is a matching D.Edge. If @le@'s target
 -- doesn't occur in @m@, any @ge@ will satisfy this condition.
 tarIDCondGen
-	:: TypedDigraph a b
-	-> Edge b
-	-> TypedDigraph a b
+	:: D.Edge b
 	-> Mapping
 	-> EdgeCondition b
-tarIDCondGen l le g m@(nmatches, _) =
+tarIDCondGen le m@(nmatches, _) =
 	(\ge -> 
-		let ltar = targetID le
-		    gtar = targetID ge
-		    matched = (\(s, t) -> s == ltar) `L.find` nmatches
+		let ltar = D.targetID le
+		    gtar = D.targetID ge
+		    matched = L.find (\(s, t) -> s == ltar) $ S.toList nmatches
 		in case matched of	
 			Just (_, n) -> gtar == n
 			otherwise -> True)
+{-
+		    matched = S.toList $ S.filter (\(s, t) -> s == ltar) nmatches
+		in case matched of
+			((_, n):ns) -> gtar == n
+			otherwise   -> True)
+-}
 
 -- | Generate an edge condition that checks If @le@ is a loop edge, check if
 -- @ge@ is also a loop in @g@.
@@ -109,14 +119,14 @@ tarIDCondGen l le g m@(nmatches, _) =
 -- so they aren't able to detect a mapping node in the current step. 
 -- Without @loopCond@, a loop edge that, e.g., happens to be the first to be
 -- mapped passes srcIDCond and tarIDCond.
-loopCondGen :: TypedDigraph a b -> Edge b -> TypedDigraph a b -> EdgeCondition b
+loopCondGen :: D.TypedDigraph a b -> D.Edge b -> D.TypedDigraph a b -> EdgeCondition b
 loopCondGen l le g =
 	(\ge ->
 		let
-			lsrc = sourceID le
-			ltar = targetID le
-			gsrc = sourceID ge
-			gtar = targetID ge
+			lsrc = D.sourceID le
+			ltar = D.targetID le
+			gsrc = D.sourceID ge
+			gtar = D.targetID ge
 		in if lsrc == ltar
 			then gsrc == gtar
 			else True)
@@ -124,32 +134,32 @@ loopCondGen l le g =
 -- | Feed each generator it's parameters and collect the resulting
 -- nodeconditions in a list.
 generateEdgeConds
-	:: TypedDigraph a b
-	-> Edge b 
-	-> TypedDigraph a b
+	:: D.TypedDigraph a b
+	-> D.Edge b 
+	-> D.TypedDigraph a b
 	-> Mapping
 	-> [EdgeCondition b]
 generateEdgeConds l le g m =
 	edgeTypeCondGen le	:
 	srcTypeCondGen l le g :
 	tarTypeCondGen l le g :
-	srcIDCondGen l le g m :
-	tarIDCondGen l le g m :
+	srcIDCondGen le m :
+	tarIDCondGen le m :
 	loopCondGen l le g :
 	[]
 
 
 -- | If all conditions in @cl@ get satisfied by the given edge @ge@, return the
 -- @m@ mapping with the new edge/nodes added. 
-processEdge :: [EdgeCondition b] -> Edge b -> Bool
+processEdge :: [EdgeCondition b] -> D.Edge b -> Bool
 processEdge cl e =
 	L.foldr (\c acc -> (c e) && acc) True cl 
 
 -------------------------------------------------------------------------
--- Node related condition functions
+-- D.Node related condition functions
 
 -- A NodeCondition checks if a node satisfies it's internal requirements.
-type NodeCondition a = Node a -> Bool
+type NodeCondition a = D.Node a -> Bool
 
 -- Condition Generators
 -- This functions are meant to be called from another one that has access to a 
@@ -158,20 +168,20 @@ type NodeCondition a = Node a -> Bool
 -- to nodes from the G graph.
 
 -- | Generate a node condition that checks if both nodes are from same type.
-nodeTypeCondGen :: Node a -> NodeCondition a
+nodeTypeCondGen :: D.Node a -> NodeCondition a
 nodeTypeCondGen ln =
-	(\n -> nodeType ln == nodeType n)
+	(\n -> D.nodeType ln == D.nodeType n)
 
 -- | If @ln@ is marked to be deleted, create a NodeCondition that checks if
 -- @gn@ has an edge pointed from/at it.
 danglingCondGen ::
 	Rule a b
-	-> TypedDigraph a b
-	-> Node a 
+	-> D.TypedDigraph a b
+	-> D.Node a 
 	-> NodeCondition a
 danglingCondGen r g ln =
-	if toBeDeleted r (nodeID ln)
-		then (\gn -> not $ hasEdge g gn)
+	if toBeDeleted r (D.nodeID ln)
+		then (\gn -> not $ D.hasEdge g gn)
 		else (\gn -> True)
 
 -- | Generate a node condition that first checks if @gn@ was already mapped. If
@@ -179,43 +189,39 @@ danglingCondGen r g ln =
 -- If so, they can be mapped to each other.
 delCondGen ::
 	Rule a b
-	-> Node a 
+	-> D.Node a 
 	-> Mapping
 	-> NodeCondition a
 delCondGen r ln m =
 	(\gn ->	(not $ isMapped gn m) ||
-			(toBeDeleted r (nodeID ln) == mappedToDel r m gn))
+			(toBeDeleted r (D.nodeID ln) == mappedToDel r m gn))
 	
 
 -- | Check if @gn@ is a right-side node in the given mapping.
-isMapped :: Node a -> Mapping -> Bool
-isMapped gn ([], _) = False
+isMapped :: D.Node a -> Mapping -> Bool
 isMapped gn (nmaps, _) =
-	let	found = L.find (\(_, gnode) -> gnode == nodeID gn) nmaps
-	in case found of
-		Just _ -> True
-		otherwise -> False
+	let	found = S.filter (\(_, gnode) -> gnode == D.nodeID gn) nmaps
+	in if S.null found
+		then True
+		else False
 		
 		
 -- | Check if @n@ was mapped to a L node marked to be deleted.
-mappedToDel :: Rule a b -> Mapping -> Node a -> Bool
+mappedToDel :: Rule a b -> Mapping -> D.Node a -> Bool
 mappedToDel r (nmaps, _) n =
-	case nmaps of
-	[] -> False
-	otherwise ->
-		let nmap = L.find (\(_, gnid) -> gnid == nid) nmaps
-		in case nmap of
-			Just (lnid, _) -> toBeDeleted r lnid
-			otherwise -> False
+	let nmap = S.filter (\(lnid, gnid) ->
+			gnid == nid && toBeDeleted r lnid)
+			nmaps
+		in not $ S.null nmap
 	where
-		nid = nodeID n
+		nid = D.nodeID n
 
 -- | Check if the L node with id @nid@ is marked to be deleted.
 toBeDeleted :: Rule a b -> Int -> Bool
-toBeDeleted r@(Morphism nal _) nid =
+toBeDeleted r@(D.Morphism nal _) nid =
 	let naction = L.find (\na -> 
 		case na of
-			(Just ln, _) -> nodeID ln == nid
+			(Just ln, _) -> D.nodeID ln == nid
 			otherwise	 -> False)
 		nal
 	in case naction of
@@ -227,9 +233,9 @@ toBeDeleted r@(Morphism nal _) nid =
 -- nodeconditions in a list.
 generateConds ::
 	Rule a b
-	-> TypedDigraph a b
-	-> Node a 
-	-> TypedDigraph a b
+	-> D.TypedDigraph a b
+	-> D.Node a 
+	-> D.TypedDigraph a b
 	-> Mapping
 	-> [NodeCondition a]
 generateConds r l ln g m =
@@ -240,7 +246,7 @@ generateConds r l ln g m =
 
 -- | Apply each condition from @nodecl@ to the node @n@. Return True if all
 -- conditions got satisfied.
-processNode :: [NodeCondition a] -> Node a -> Bool
+processNode :: [NodeCondition a] -> D.Node a -> Bool
 processNode cl n =
 	L.foldr (\c acc -> (c n) && acc) True cl
 	
@@ -254,69 +260,74 @@ processNode cl n =
 mapGraphs
 	:: Rule a b
 	-> MorphismType
-	-> TypedDigraph a b	-- ^ @l@, the "left side" graph
-	-> (Mapping, TypedDigraph a b, [Edge b], [Node a]) -- ^ @m@, what already got mapped
-	-> [(Mapping, TypedDigraph a b, [Edge b], [Node a])]
-mapGraphs _ _ _ ml@(_, _, _, []) = [ml]
+	-> D.TypedDigraph a b	-- ^ @l@, the "left side" graph
+	-> (Mapping, D.TypedDigraph a b, [D.Edge b], [D.Node a]) -- ^ @m@, what already got mapped
+	-> [(Mapping, D.TypedDigraph a b, [D.Edge b], [D.Node a])]
+mapGraphs _ mt _ ml@((nmap, emap), D.TypedDigraph dg@(D.Digraph gnm gem) _, _, []) =
+	case mt of
+	Epi -> if S.size nmap == IM.size gnm && S.size emap == IM.size gem
+			then [ml]
+			else []
+	Iso -> if D.nullG dg
+			then [ml]
+			else []
+	otherwise -> [ml]
 mapGraphs r mt l (m@(nmatch, ematch),
-	g@(TypedDigraph dg@(Digraph gnm gem) tg),
+	g@(D.TypedDigraph dg@(D.Digraph gnm gem) tg),
 	(le:les), lns) =
 	let
 		conds = generateEdgeConds l le g m
-		edgeList = case mt of
-			Monomorphic -> les
-			Isomorphic -> les
-			otherwise -> edges dg
+		edgeList = D.edges dg
 		candidates = filter (processEdge conds) $ edgeList
 		newMappings = fmap
 			(\ge ->
 				let
-					sid = sourceID ge
-					tid = targetID ge
-					eid = edgeID ge
+					sid = D.sourceID ge
+					tid = D.targetID ge
+					eid = D.edgeID ge
 					newLNodeList = L.filter (\n ->
-						let nid = nodeID n
-						in nid /= sid && nid /= tid && nid /= eid)
+						let nid = D.nodeID n
+						in (nid /= D.sourceID le) && (nid /= D.targetID le))
 						lns
 				in
-				(((sourceID le, sid) :
-				  (targetID le, tid) :
+				((S.insert (D.sourceID le, sid) $
+				  S.insert (D.targetID le, tid) $
 				  nmatch,
-				  (edgeID le, eid) : ematch),
-				if mt == Normal
+				  S.insert (D.edgeID le, eid) ematch),
+				if mt == Normal || mt == Epi
 				then g
-				else TypedDigraph (Digraph (IM.delete sid $ IM.delete tid gnm)
-					 			  		   (IM.delete eid gem))
+				else D.TypedDigraph (D.Digraph (IM.delete sid $ IM.delete tid gnm)
+					 			  		       (IM.delete eid gem))
 							  	tg,
-			 	 les,
-				 newLNodeList))
+			 	les,
+				newLNodeList))
 			candidates
 	in newMappings >>= mapGraphs r mt l
 mapGraphs r mt l (m@(nmatch, ematch),
-	g@(TypedDigraph dg@(Digraph gnm gem) tg),
+	g@(D.TypedDigraph dg@(D.Digraph gnm gem) tg),
 	[], (ln:lns)) =
 	let
 		conds = (generateConds r l ln g m)
-		candidates = filter (processNode conds) $ nodes dg
+		candidates = filter (processNode conds) $ D.nodes dg
 		newMappings = fmap
 			(\gn ->
-				let gid = nodeID gn
+				let gid = D.nodeID gn
 				in
-				(((nodeID ln, gid) : nmatch, ematch),
-				 if mt == Normal
+				((S.insert (D.nodeID ln, gid) nmatch, ematch),
+				 if mt == Normal || mt == Epi
 				 then g
-				 else TypedDigraph (Digraph (IM.delete gid gnm) gem) tg,
+				 else D.TypedDigraph (D.Digraph (IM.delete gid gnm) gem) tg,
 				 [], lns))
 			candidates
 	in newMappings >>= mapGraphs r mt l
 
 
+
 -- | Given two typed graph's, return a list of all possible mappings
 -- considering only the subgraph inducted by the edges.
-matchGraphs :: Rule a b -> MorphismType -> TypedDigraph a b -> TypedDigraph a b -> [Mapping]
-matchGraphs r mt l@(TypedDigraph dg _) g =
-	map (\(m, _, _, _) -> m) $ mapGraphs r mt l (([], []), g, edges dg, nodes dg)
-
+matchGraphs :: Rule a b -> MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [Mapping]
+matchGraphs r mt l@(D.TypedDigraph dl _) g =
+	map (\(m, _, _, _) -> m ) $ mapGraphs r mt l ((S.empty, S.empty), g, D.edges dl, D.nodes dl)
 
 
 ------------------------------------------------------------------------
@@ -328,15 +339,9 @@ matchGraphs r mt l@(TypedDigraph dg _) g =
 -- mapped in @m@. The number of elements in this set is compared to those from
 -- graph @g@ to see if all got mapped.
 -- TODO: use Data.Set for efficiency reasons.
-isSurjective :: TypedDigraph a b -> Mapping -> Bool
-isSurjective (TypedDigraph (Digraph gnm gem) _) m@(nm, em) =
-	let mNodeList =	L.nub $ foldr (\(_, n) acc -> n:acc) [] nm
-	    mEdgeList = L.nub $ foldr (\(_, e) acc -> e:acc) [] em
-	in
-		if IM.size gnm == L.length mNodeList &&
-		   IM.size gem == L.length mEdgeList
-		then True
-		else False
+isSurjective :: D.TypedDigraph a b -> Mapping -> Bool
+isSurjective (D.TypedDigraph (D.Digraph gnm gem) _) m@(nmaps, emaps) =
+	IM.size gnm == S.size nmaps && IM.size gem == S.size emaps
 
 -- | Check if a mapping is injective.
 
@@ -345,6 +350,7 @@ isSurjective (TypedDigraph (Digraph gnm gem) _) m@(nm, em) =
 -- represent an injective relation.  @iter@ does so by checking if any "right
 -- side" node/edge got mapped twice, with help of @mem@ that "remembers" the
 -- node/edges scanned so far.
+{-
 isInjective :: Mapping -> Bool
 isInjective ([], []) = True
 isInjective (nms, ems) =
@@ -357,19 +363,24 @@ isInjective (nms, ems) =
 			((_, t):xs) -> if t `L.elem` mem
 					  then False
 					  else iter xs (t:mem)	
+-}
 
 -- | List all isomorphisms (represented as mappings) between both graphs.
-findIsoMorphisms :: TypedDigraph a b -> TypedDigraph a b -> [Mapping]
-findIsoMorphisms l@(TypedDigraph (Digraph lnm lem) _) g@(TypedDigraph (Digraph gnm gem) _) =
+findIsoMorphisms :: D.TypedDigraph a b -> D.TypedDigraph a b -> [Mapping]
+findIsoMorphisms l@(D.TypedDigraph (D.Digraph lnm lem) _) g@(D.TypedDigraph (D.Digraph gnm gem) _) =
 	if IM.size lnm /= IM.size gnm ||
 	   IM.size lem /= IM.size gem
 	then []
+	else findMatchesR emptyRule Iso l g
+
+{-
 	else filter isInjective $
 		 	filter (isSurjective g) $
-		 		findMatches Isomorphic l g
+		 		findMatches Iso l g
+-}
 
 -- | Check if there's an isomorphism between two graphs.
-isIsomorphic :: TypedDigraph a b -> TypedDigraph a b -> Bool
+isIsomorphic :: D.TypedDigraph a b -> D.TypedDigraph a b -> Bool
 isIsomorphic a b = findIsoMorphisms a b /= []
 
 
