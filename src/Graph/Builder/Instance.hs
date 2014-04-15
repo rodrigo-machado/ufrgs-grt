@@ -1,23 +1,23 @@
 module Graph.Builder.Instance ( InstanceBuilder
-                , Target (..)
-                , Elem (..)
-                , RuleOp (..)
-                , build
-                , newRule
-                , newNode
-                , newEdge
-                , getGraph
-                , putGraph
-                , getRules
-                , putRules
-                , getType
-                , putType
-                , getCurrentRule
-                , setCurrentRule
-                , getCurrentRuleId
-                , setCurrentRuleId
-                , setRuleOperation
-                ) where
+                              , Target (..)
+                              , Elem (..)
+                              , RuleOp (..)
+                              , build
+                              , newRule
+                              , newNode
+                              , newEdge
+                              , getGraph
+                              , putGraph
+                              , getRules
+                              , putRules
+                              , getType
+                              , putType
+                              , getCurrentRule
+                              , setCurrentRule
+                              , getCurrentRuleId
+                              , setCurrentRuleId
+                              , setRuleOperation
+                              ) where
 
 import Data.List
 import Data.Maybe
@@ -36,73 +36,86 @@ data Target = Inst -- Instance graph
             | Type -- Type graph
             | Rule -- Rule span
 
-data RuleOp = Perserve
-            | Delete
-            | Create
+data RuleOp = Perserve -- Element will be preserved
+            | Delete   -- Element will be deleted
+            | Create   -- Element will be created
 
-data Elem = N
-          | E
+data Elem = N -- Acts on Nodes
+          | E -- Acts on Edges
 
 type TypeId = Int
 
+-- | Returns the current graph
 getGraph :: Monad m => InstanceBuilder a b m (Digraph a b)
 getGraph = do (g, t, rs, r) <- get
               return g
 
+-- | Sets the current graph
 putGraph :: Monad m => Digraph a b -> InstanceBuilder a b m ()
 putGraph g = do (_, t, rs, r) <- get
                 put $ (g, t, rs, r)
 
+-- | Gets the current type graph
 getType :: Monad m => InstanceBuilder a b m (Digraph a b)
 getType = do (g, t, rs, r) <- get
              return t
 
+-- | Saves the current type graph
 putType :: Monad m => Digraph a b -> InstanceBuilder a b m ()
 putType t = do (g, _, rs, r) <- get
                put $ (g, t, rs, r)
 
+-- | Get the current list of rules
 getRules :: Monad m => InstanceBuilder a b m [(Int, Rule a b)]
 getRules = do (g, t, rs, r) <- get
               return rs
 
+-- | Puts a new list of rules
 putRules :: Monad m => [(Int, Rule a b)] -> InstanceBuilder a b m ()
 putRules rs = do (g, t, _, r) <- get
                  put $ (g, t, rs, r)
 
+-- | Gets the id of the currently selected rule
 getCurrentRuleId :: Monad m => InstanceBuilder a b m Int
 getCurrentRuleId = do (g, t, rs, r) <- get
                       return r
 
+-- | Selects a new rule id
 setCurrentRuleId :: Monad m => Int -> InstanceBuilder a b m ()
 setCurrentRuleId r = do (g, t, rs, _) <- get
                         put $ (g, t, rs, r)
 
+-- | Gets the currently selected rule
 getCurrentRule :: Monad m => InstanceBuilder a b m (Rule a b)
 getCurrentRule = do rs <- getRules
                     i <- getCurrentRuleId
                     return $ fromJust $ lookup i rs
 
+-- | Puts a new rule on the current id
 setCurrentRule :: Monad m => Rule a b -> InstanceBuilder a b m ()
 setCurrentRule r = do rs <- getRules
                       i <- getCurrentRuleId
                       let (h, t) = splitAt i rs
                       putRules $ h ++ ((i, r):tail t)
 
-
+-- | Builds the instance
 build :: Monad m => InstanceBuilder a b m r -> m (TypedDigraph a b, [Rule a b])
 build i = do
     (g, t, rs, _) <- liftM snd $ runStateT i (empty, empty, [], -1)
     return (TypedDigraph g t, map snd rs)
 
+-- | Creates a new rule, returns the id
 newRule :: Monad m => InstanceBuilder a b m Int
 newRule = do rs <- getRules
              let newId = length rs
              putRules $ (newId, Morphism [] []):rs
              return $ newId
 
+-- | Checks if the graph and all rules are consistent.
 consist :: Monad m => InstanceBuilder a b m Bool
 consist = undefined
 
+-- | Creates a new node on the selected target
 newNode :: Monad m => Target -> TypeId -> a -> InstanceBuilder a b m Int
 newNode Rule t p = do (Morphism ns es) <- getCurrentRule
                       let ks = (map nodeID $ catMaybes $ map fst ns)
@@ -125,7 +138,7 @@ newNode Inst t p =  do (Digraph ns es) <- getGraph
                        putGraph newGraph
                        return $ newId ks -- thank you, lazyness
 
-
+-- | Creates a new edge on the selected target
 newEdge :: Monad m => Target -> TypeId -> (Int, Int) -> b -> InstanceBuilder a b m Int
 newEdge Inst t c p = do (Digraph ns es) <- getGraph
                         let ks = keys es
@@ -148,6 +161,7 @@ newEdge Rule t c p = do (Morphism ns es) <- getCurrentRule
                         setCurrentRule $ Morphism ns (newRule:es)
                         return $ newId ks
 
+-- | Sets the operation on the selected rule node.
 setRuleOperation :: Monad m => RuleOp -> Elem -> Int -> InstanceBuilder a b m ()
 setRuleOperation o N i = do (Morphism ns es) <- getCurrentRule
                             let rl = filter (not . selectAction (byElementId i)) ns
