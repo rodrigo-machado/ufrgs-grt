@@ -3,7 +3,7 @@ module Graph.StateSpace ( StateSpace (..)
                         , runStateSpace
                         ) where
 
-import Prelude hiding (Empty)
+import Prelude
 
 import Graph.Builder.Digraph
 import Graph.Digraph
@@ -40,7 +40,7 @@ runStateSpace n g r = buildGraph $ do i <- createNode g 1
 mkStateSpace :: (Eq a, Eq b, MonadIO m) => Int -> Int -> TypedDigraph a b -> [Rule a b] -> SSBuilder a b m ()
 mkStateSpace 0 _ _ _ = return ()
 mkStateSpace n i g r = do forM_ r $ \r' ->
-                            do forM_ (findMatchesR r' (left r' $ tpg g) g) $ \m -> do
+                            do forM_ (findMatchesR r' Normal (left r' $ tpg g) g) $ \m -> do
                                 t <- rewrite r' g m
                                 i' <- putState i t (r', m)
                                 if i' == 0
