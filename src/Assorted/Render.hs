@@ -8,9 +8,6 @@ import Graph.Match (Mapping)
 import qualified Data.Set as S
 import qualified Data.List as L
 
-type Edge :: Int -> Int -
-
-printEdge :: Int -> 
 
 graphToDot :: D.TypedDigraph a b -> String
 graphToDot (D.TypedDigraph dg _) =
