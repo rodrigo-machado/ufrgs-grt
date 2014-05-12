@@ -26,8 +26,9 @@ graphToDot (D.TypedDigraph dg _) =
 		let ntype = D.nodeType n
 		in
 			"\t" ++ (show $ D.nodeID n) ++
---			" [shape=circle, sides=" ++
-			(show (ntype + 2)) ++ "];\n" ++ str)
+			" [style=\"filled\", colorscheme=paired12, color=" ++
+			(show ntype) ++ "];\n" ++ str
+		)
 		" " nl
 	in str ++ str_types
 
@@ -69,9 +70,10 @@ ggToDot g@(D.Digraph nm em) =
 		acc ++ "\n\t" ++ show (D.nodeID $ head srcNodes) ++
 		" -> " ++ show (D.nodeID $ head tarNodes) ++ 
 		" [ltail=cluster" ++ show (D.sourceID e) ++
-		" lhead=cluster" ++ show (D.targetID e) ++ "];\n")
+		", lhead=cluster" ++ show (D.targetID e) ++ "];\n")
 		nodeStr em
-	in edgeStr
+	    graphStyle = "\n\tgraph [style=\"rounded, filled\", color=\"lightyellow\"];\n"
+	in graphStyle ++ edgeStr
 
 finishDot :: String -> String -> String
 finishDot name dot =
