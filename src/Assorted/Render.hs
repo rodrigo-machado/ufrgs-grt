@@ -13,8 +13,8 @@ import qualified Data.Set as S
 import qualified Data.List as L
 
 
-graphToDot :: D.TypedDigraph a b -> String
-graphToDot (D.TypedDigraph dg _) =
+graphToDot :: String -> D.TypedDigraph a b -> String
+graphToDot prefix (D.TypedDigraph dg _) =
 	let el = D.edges dg
 	    nl = D.nodes dg
 	    str = foldr (\e str ->
@@ -25,7 +25,7 @@ graphToDot (D.TypedDigraph dg _) =
 	    str_types = foldr (\n str ->
 		let ntype = D.nodeType n
 		in
-			"\t" ++ (show $ D.nodeID n) ++
+			"\t" ++ prefix ++ (show $ D.nodeID n) ++
 			" [style=\"filled\", colorscheme=paired12, color=" ++
 			(show ntype) ++ "];\n" ++ str
 		)
@@ -45,12 +45,12 @@ mappingToDot m@(nmaps, emaps) l g =
 	"\tstyle=filled;\n" ++
 	"\tcolor=lightgrey;\n" ++
 	"\tlabel = \"L\"" ++
-	graphToDot l ++
+	graphToDot "" l ++
 	"}\n" ++
 	"\tsubgraph cluster1 {\n" ++
 	"\tnode [style=filled]\n" ++
 	"\tlabel = \"G\"\n" ++
-	graphToDot g ++
+	graphToDot "" g ++
 	"}\n" ++
 	"\tedge [color=red, style=dotted]\n\t" ++
 	morphismEdges
@@ -59,20 +59,22 @@ ggToDot :: D.Digraph (D.TypedDigraph String String) a -> String
 ggToDot g@(D.Digraph nm em) =
 	let nodeStr = IM.fold (\n acc ->
 		"\n\tsubgraph cluster" ++ show (D.nodeID n) ++ " {\n" ++
-		graphToDot (D.nodePayload n) ++ "\t}\n" ++ acc)
+		graphToDot (show $ D.nodeID n) (D.nodePayload n) ++ "\t}\n" ++ acc)
 		"" nm
 	    edgeStr = IM.fold (\e acc ->
-		let (D.TypedDigraph srcD _) = D.nodePayload $ D.source e g
+		let srcId = D.sourceID e
+		    tgtId = D.targetID e
+		    (D.TypedDigraph srcD _) = D.nodePayload $ D.source e g
 		    (D.TypedDigraph tarD _) = D.nodePayload $ D.target e g
 		    srcNodes = D.nodes srcD
 		    tarNodes = D.nodes tarD
 		in
-		acc ++ "\n\t" ++ show (D.nodeID $ head srcNodes) ++
-		" -> " ++ show (D.nodeID $ head tarNodes) ++ 
+		acc ++ "\n\t" ++ show srcId ++ show (D.nodeID $ head srcNodes) ++
+		" -> " ++ show tgtId ++ show (D.nodeID $ head tarNodes) ++ 
 		" [ltail=cluster" ++ show (D.sourceID e) ++
 		", lhead=cluster" ++ show (D.targetID e) ++ "];\n")
 		nodeStr em
-	    graphStyle = "\n\tgraph [style=\"rounded, filled\", color=\"lightyellow\"];\n"
+	    graphStyle = "\n\tgraph [style=\"rounded, filled\", color=\"red\"];\n"
 	in graphStyle ++ edgeStr
 
 finishDot :: String -> String -> String

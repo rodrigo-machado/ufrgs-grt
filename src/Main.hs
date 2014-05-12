@@ -34,7 +34,7 @@ main = do
     forM_ (nodes ss) $ \(Node i t n) ->
         renderSVG (concat ["state", show i,".svg"]) (Dims 400 600) $ formatGraph $ graph n
 
-unserializeUnit :: String -> Serialized () ()
+unserializeUnit :: String -> Serialized String String
 unserializeUnit = unserialize
 
 data SystemOptions = SystemOptions { stepsToStop :: Int
