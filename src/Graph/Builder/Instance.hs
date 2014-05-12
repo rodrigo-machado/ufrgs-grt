@@ -6,6 +6,8 @@ module Graph.Builder.Instance ( InstanceBuilder
                               , newRule
                               , newNode
                               , newEdge
+                              , addRuleNode
+                              , addRuleEdge
                               , getGraph
                               , putGraph
                               , getRules
@@ -25,6 +27,7 @@ import Data.IntMap (keys)
 import qualified Data.IntMap as M
 
 import Control.Monad.State
+import Control.Monad.IO.Class
 
 import Graph.Digraph 
 import Graph.Rewriting
@@ -36,7 +39,7 @@ data Target = Inst -- Instance graph
             | Type -- Type graph
             | Rule -- Rule span
 
-data RuleOp = Perserve -- Element will be preserved
+data RuleOp = Preserve -- Element will be preserved
             | Delete   -- Element will be deleted
             | Create   -- Element will be created
 
@@ -95,8 +98,8 @@ getCurrentRule = do rs <- getRules
 setCurrentRule :: Monad m => Rule a b -> InstanceBuilder a b m ()
 setCurrentRule r = do rs <- getRules
                       i <- getCurrentRuleId
-                      let (h, t) = splitAt i rs
-                      putRules $ h ++ ((i, r):tail t)
+                      let rs' = filter ((/= i) . fst) rs
+                      putRules $ (i, r):rs'
 
 -- | Builds the instance
 build :: Monad m => InstanceBuilder a b m r -> m (TypedDigraph a b, [Rule a b])
@@ -111,9 +114,15 @@ newRule = do rs <- getRules
              putRules $ (newId, Morphism [] []):rs
              return $ newId
 
--- | Checks if the graph and all rules are consistent.
-consist :: Monad m => InstanceBuilder a b m Bool
-consist = undefined
+-- | Deletes the selected rule.
+deleteRule :: Monad m => Int -> InstanceBuilder a b m ()
+deleteRule i = do rs <- getRules
+                  let rs' = filter ((/= i) . fst) rs
+                  putRules rs'
+
+-- | Checks if the graph and all rules are consistent, calls fail if not.
+checkConsistency :: Monad m => InstanceBuilder a b m ()
+checkConsistency = undefined
 
 -- | Creates a new node on the selected target
 newNode :: Monad m => Target -> TypeId -> a -> InstanceBuilder a b m Int
@@ -155,11 +164,22 @@ newEdge Type t c p = do (Digraph ns es) <- getType
                         return $ newId ks -- thank you, lazyness
 
 newEdge Rule t c p = do (Morphism ns es) <- getCurrentRule
-                        let ks = (map edgeID $ catMaybes $ map fst es)
+                        let kext f = map edgeID $ catMaybes $ map f es
+                            ks =  kext fst `union` kext snd
                             newEdge = (Just $ Edge (newId ks) c t p)
                             newRule = (newEdge, newEdge)
                         setCurrentRule $ Morphism ns (newRule:es)
                         return $ newId ks
+
+addRuleNode :: Monad m => RuleOp -> TypeId -> a -> InstanceBuilder a b m Int
+addRuleNode o t p = do nid <- newNode Rule t p
+                       setRuleOperation o N nid
+                       return nid
+
+addRuleEdge :: Monad m => RuleOp -> TypeId -> (Int, Int) -> b -> InstanceBuilder a b m Int
+addRuleEdge o t c p = do eid <- newEdge Rule t c p
+                         setRuleOperation o E eid
+                         return eid
 
 -- | Sets the operation on the selected rule node.
 setRuleOperation :: Monad m => RuleOp -> Elem -> Int -> InstanceBuilder a b m ()
@@ -179,12 +199,12 @@ byElementId _ Nothing  = False
 byElementId i (Just x) = elemId x == i
 
 selectAction :: Element a => (Maybe a -> Bool) -> (Maybe a, Maybe a) -> Bool
-selectAction f (x, y) = f x && f y
+selectAction f (x, y) = f x || f y
 
 ruleOP :: RuleOp -> (Maybe a, Maybe a) -> (Maybe a, Maybe a)
-ruleOP Perserve (Just x, Nothing) = (Just x, Just x)
-ruleOP Perserve (Nothing, Just x) = (Just x, Just x)
-ruleOP Perserve x                 = x
+ruleOP Preserve (Just x, Nothing) = (Just x, Just x)
+ruleOP Preserve (Nothing, Just x) = (Just x, Just x)
+ruleOP Preserve x                 = x
 
 ruleOP Delete   (_, Just x)       = (Just x, Nothing)
 ruleOP Delete   x                 = x
