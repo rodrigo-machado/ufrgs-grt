@@ -1,9 +1,11 @@
 module Assorted.Render
 	(graphToDot
-	 ,mappingToDot)
+	 ,mappingToDot
+	 ,ggToDot)
 where
 
 import qualified Graph.Digraph as D
+import qualified Data.IntMap as IM
 import Graph.Match (Mapping)
 import qualified Data.Set as S
 import qualified Data.List as L
@@ -25,7 +27,7 @@ graphToDot (D.TypedDigraph dg _) =
 			" [shape=polygon, sides=" ++
 			(show (ntype + 2)) ++ "];\n" ++ str)
 		" " nl
-	in str ++ str_types ++ "\n"
+	in str ++ str_types
 
 		
 mappingToDot :: Mapping -> D.TypedDigraph a b -> D.TypedDigraph a b -> String
@@ -49,3 +51,22 @@ mappingToDot m@(nmaps, emaps) l g =
 	"}\n" ++
 	"\tedge [color=red, style=dotted]\n\t" ++
 	morphismEdges
+
+ggToDot :: D.Digraph (D.TypedDigraph String String) String -> String
+ggToDot g@(D.Digraph nm em) =
+	let nodeStr = IM.fold (\n acc ->
+		"\n\tsubgraph cluster" ++ show (D.nodeID n) ++ " {\n" ++
+		graphToDot (D.nodePayload n) ++ "\t}\n" ++ acc)
+		"" nm
+	    edgeStr = IM.fold (\e acc ->
+		let (D.TypedDigraph srcD _) = D.nodePayload $ D.source e g
+		    (D.TypedDigraph tarD _) = D.nodePayload $ D.target e g
+		    srcNodes = D.nodes srcD
+		    tarNodes = D.nodes tarD
+		in
+		acc ++ "\n\t" ++ show (D.nodeID $ head srcNodes) ++
+		" -> " ++ show (D.nodeID $ head tarNodes) ++ 
+		" [ltail=cluster" ++ show (D.sourceID e) ++
+		" lhead=cluster" ++ show (D.targetID e) ++ "];\n")
+		nodeStr em
+	in edgeStr
