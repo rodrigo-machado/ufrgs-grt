@@ -1,7 +1,9 @@
 module Assorted.Render
 	(graphToDot
-	 ,mappingToDot
-	 ,ggToDot)
+	,mappingToDot
+	,ggToDot
+	,finishDot
+)
 where
 
 import qualified Graph.Digraph as D
@@ -24,7 +26,7 @@ graphToDot (D.TypedDigraph dg _) =
 		let ntype = D.nodeType n
 		in
 			"\t" ++ (show $ D.nodeID n) ++
-			" [shape=polygon, sides=" ++
+--			" [shape=circle, sides=" ++
 			(show (ntype + 2)) ++ "];\n" ++ str)
 		" " nl
 	in str ++ str_types
@@ -70,3 +72,7 @@ ggToDot g@(D.Digraph nm em) =
 		" lhead=cluster" ++ show (D.targetID e) ++ "];\n")
 		nodeStr em
 	in edgeStr
+
+finishDot :: String -> String -> String
+finishDot name dot =
+	"digraph " ++ show name ++ " {" ++ dot ++ "}\n"

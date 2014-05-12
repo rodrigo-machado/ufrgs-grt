@@ -77,4 +77,4 @@ main = do
 				mappingToDot (maps!!m) tdl tdg ++ "}"
 		in writeFile ("graph" ++ (show m) ++ ".gv") contents 
 -}
-	putStr $ "digraph G {" ++ (ggToDot mainGraph) ++ "}\n"
+	putStr $ finishDot "G" $ ggToDot mainGraph
