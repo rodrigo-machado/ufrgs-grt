@@ -14,6 +14,7 @@ import Control.Monad.List
 import Control.Monad.IO.Class
 
 import Assorted.PrettyPrint
+import Assorted.Render
 
 import Graph.Digraph
 import Graph.Match
@@ -27,6 +28,8 @@ main = do
     system <- readFile $ head systems
     let (Serialized graphs rules) = unserializeUnit system
     ss <- runStateSpace (stepsToStop options) (head graphs) rules
+    let dot = ggToDot ss
+    writeFile "output.dot" $ finishDot "G" dot
     output (outputFormat options) ss
     forM_ (nodes ss) $ \(Node i t n) ->
         renderSVG (concat ["state", show i,".svg"]) (Dims 400 600) $ formatGraph $ graph n

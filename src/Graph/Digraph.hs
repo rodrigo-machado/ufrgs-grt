@@ -9,7 +9,7 @@ module Graph.Digraph
 	, nullG
 	, node
 	, edge
-    , Element (..)
+	, Element (..)
 	, addNode
 	, addEdge
 	, removeNode
@@ -30,6 +30,7 @@ module Graph.Digraph
 	, edgeID
 	, sourceID
 	, targetID
+	, nodePayload
 	, addNodeAction 
 	, addEdgeAction 
 	, applyActions
@@ -199,6 +200,9 @@ hasEdge (TypedDigraph dg _) n =
 	in case found of
 		Just _ -> True
 		Nothing -> False
+
+nodePayload :: Node a -> a
+nodePayload (Node _ _ p) = p
 
 ----------------------------------------------------------------------------
 -- | Non-monadic interface
