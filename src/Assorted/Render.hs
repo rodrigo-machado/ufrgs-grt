@@ -26,7 +26,8 @@ graphToDot prefix (D.TypedDigraph dg _) =
 		let ntype = D.nodeType n
 		in
 			"\t" ++ prefix ++ (show $ D.nodeID n) ++
-			" [style=\"filled\", colorscheme=paired12, color=" ++
+			" [shape=\"circle\", style=\"filled\", " ++
+			"label=" ++ (show $ D.nodeID n) ++ ", colorscheme=paired12, color=" ++
 			(show ntype) ++ "];\n" ++ str
 		)
 		" " nl
@@ -41,7 +42,7 @@ mappingToDot m@(nmaps, emaps) l g =
 	    
 	in 
 	"\n\tsubgraph cluster0 {\n" ++
-	"\tnode [style=filled,color=white];\n" ++
+	"\tnode [shape=circle,style=filled,color=white];\n" ++
 	"\tstyle=filled;\n" ++
 	"\tcolor=lightgrey;\n" ++
 	"\tlabel = \"L\"" ++
@@ -59,6 +60,7 @@ ggToDot :: D.Digraph (D.TypedDigraph String String) a -> String
 ggToDot g@(D.Digraph nm em) =
 	let nodeStr = IM.fold (\n acc ->
 		"\n\tsubgraph cluster" ++ show (D.nodeID n) ++ " {\n" ++
+--		"\tlayout=circo;\n" ++
 		graphToDot (show $ D.nodeID n) (D.nodePayload n) ++ "\t}\n" ++ acc)
 		"" nm
 	    edgeStr = IM.fold (\e acc ->
@@ -69,12 +71,17 @@ ggToDot g@(D.Digraph nm em) =
 		    srcNodes = D.nodes srcD
 		    tarNodes = D.nodes tarD
 		in
-		acc ++ "\n\t" ++ show srcId ++ show (D.nodeID $ head srcNodes) ++
+{-		acc ++ "\n\t" ++ show srcId ++ show (D.nodeID $ head srcNodes) ++
 		" -> " ++ show tgtId ++ show (D.nodeID $ head tarNodes) ++ 
 		" [ltail=cluster" ++ show (D.sourceID e) ++
-		", lhead=cluster" ++ show (D.targetID e) ++ "];\n")
+		", lhead=cluster" ++ show (D.targetID e) ++ "];\n") -}
+		acc ++ "\n\tcluster" ++ show (D.sourceID e) ++ " -> cluster" ++
+		show (D.targetID e) ++ ";\n")
 		nodeStr em
-	    graphStyle = "\n\tgraph [style=\"rounded, filled\", color=\"red\"];\n"
+	    graphStyle = "\n\tgraph [style=\"rounded\", nodesep=2, ranksep=3];\n" ++
+			 "\tcompound=true;\n" ++
+			 "\tedge [len=3];\n"
+--			 "\tlayout=circo;\n"
 	in graphStyle ++ edgeStr
 
 finishDot :: String -> String -> String
