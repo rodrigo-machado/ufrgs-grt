@@ -71,14 +71,12 @@ ggToDot g@(D.Digraph nm em) =
 		    srcNodes = D.nodes srcD
 		    tarNodes = D.nodes tarD
 		in
-{-		acc ++ "\n\t" ++ show srcId ++ show (D.nodeID $ head srcNodes) ++
+		acc ++ "\n\t" ++ show srcId ++ show (D.nodeID $ head srcNodes) ++
 		" -> " ++ show tgtId ++ show (D.nodeID $ head tarNodes) ++ 
 		" [ltail=cluster" ++ show (D.sourceID e) ++
-		", lhead=cluster" ++ show (D.targetID e) ++ "];\n") -}
-		acc ++ "\n\tcluster" ++ show (D.sourceID e) ++ " -> cluster" ++
-		show (D.targetID e) ++ ";\n")
-		nodeStr em
-	    graphStyle = "\n\tgraph [style=\"rounded\", nodesep=2, ranksep=3];\n" ++
+		", lhead=cluster" ++ show (D.targetID e) ++ "];\n")
+			nodeStr em
+	    graphStyle = "\n\tgraph [style=\"rounded\", ranksep=1];\n" ++
 			 "\tcompound=true;\n" ++
 			 "\tedge [len=3];\n"
 --			 "\tlayout=circo;\n"
