@@ -20,7 +20,7 @@ graphToDot prefix (D.TypedDigraph dg _) =
 	    str = foldr (\e str ->
 		let sid = D.sourceID e
 		    tid = D.targetID e
-		in "\t" ++ (show sid) ++ " -> " ++ (show tid) ++ ";\n" ++ str)
+		in "\t" ++ prefix ++ (show sid) ++ " -> " ++ prefix ++ (show tid) ++ ";\n" ++ str)
 		" " el
 	    str_types = foldr (\n str ->
 		let ntype = D.nodeType n
