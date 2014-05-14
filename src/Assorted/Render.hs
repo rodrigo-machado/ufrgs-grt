@@ -61,7 +61,7 @@ ggToDot g@(D.Digraph nm em) =
 	let nodeStr = IM.fold (\n acc ->
 		"\n\tsubgraph cluster" ++ show (D.nodeID n) ++ " {\n" ++
 --		"\tlayout=circo;\n" ++
-		graphToDot (show $ D.nodeID n) (D.nodePayload n) ++ "\t}\n" ++ acc)
+		graphToDot (showIfNonZero (D.nodeID n)) (D.nodePayload n) ++ "\t}\n" ++ acc)
 		"" nm
 	    edgeStr = IM.fold (\e acc ->
 		let srcId = D.sourceID e
@@ -71,16 +71,19 @@ ggToDot g@(D.Digraph nm em) =
 		    srcNodes = D.nodes srcD
 		    tarNodes = D.nodes tarD
 		in
-		acc ++ "\n\t" ++ show srcId ++ show (D.nodeID $ head srcNodes) ++
-		" -> " ++ show tgtId ++ show (D.nodeID $ head tarNodes) ++ 
+		acc ++ "\n\t" ++ showIfNonZero srcId ++ show (D.nodeID $ head srcNodes) ++
+		" -> " ++ showIfNonZero tgtId ++ show (D.nodeID $ head tarNodes) ++ 
 		" [ltail=cluster" ++ show (D.sourceID e) ++
 		", lhead=cluster" ++ show (D.targetID e) ++ "];\n")
 			nodeStr em
-	    graphStyle = "\n\tgraph [style=\"rounded\", ranksep=1];\n" ++
+	    graphStyle = "\n\tgraph [style=\"rounded, dashed\", ranksep=1.3];\n" ++
 			 "\tcompound=true;\n" ++
 			 "\tedge [len=3];\n"
 --			 "\tlayout=circo;\n"
 	in graphStyle ++ edgeStr
+	where showIfNonZero nid =
+		if nid == 0 then "" else (show nid)
+
 
 finishDot :: String -> String -> String
 finishDot name dot =
