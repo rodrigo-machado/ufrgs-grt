@@ -28,7 +28,7 @@ graphToDot prefix (D.TypedDigraph dg _) =
 			"\t" ++ prefix ++ (show $ D.nodeID n) ++
 			" [shape=\"circle\", style=\"filled\", " ++
 			"label=" ++ (show $ D.nodeID n) ++ ", colorscheme=paired12, color=" ++
-			(show ntype) ++ "];\n" ++ str
+			show (ntype `mod` 12) ++ "];\n" ++ str
 		)
 		" " nl
 	in str ++ str_types
