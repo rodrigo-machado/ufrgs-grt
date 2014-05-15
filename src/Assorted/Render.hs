@@ -56,7 +56,7 @@ mappingToDot m@(nmaps, emaps) l g =
 	"\tedge [color=red, style=dotted]\n\t" ++
 	morphismEdges
 
-ggToDot :: D.Digraph (D.TypedDigraph String String) a -> String
+ggToDot :: D.Digraph (D.TypedDigraph a b) c -> String
 ggToDot g@(D.Digraph nm em) =
 	let nodeStr = IM.fold (\n acc ->
 		"\n\tsubgraph cluster" ++ show (D.nodeID n) ++ " {\n" ++
