@@ -220,11 +220,11 @@ toBeDeleted r@(D.Morphism nal _) nid =
 	let naction = L.find (\na -> 
 		case na of
 			(Just ln, _) -> D.nodeID ln == nid
-			otherwise	 -> False)
+			otherwise    -> False)
 		nal
 	in case naction of
-		Just (_, Nothing)	-> True
-		otherwise			-> False
+		Just (_, Nothing) -> True
+		otherwise	  -> False
 
 		
 -- | Feed each generator it's parameters and collect the resulting
@@ -239,7 +239,7 @@ generateConds ::
 generateConds r l ln g m =
 	nodeTypeCondGen ln	:
 	delCondGen r ln	m	:
-	danglingCondGen	r g ln :
+	danglingCondGen	r g ln 	:
 	[]
 
 -- | Apply each condition from @nodecl@ to the node @n@. Return True if all
@@ -298,9 +298,9 @@ mapGraphs r mt l (m@(nmatch, ematch),
 				  S.insert (D.edgeID le, eid) ematch),
 				if mt == Normal || mt == Epi
 				then g
-				else D.TypedDigraph (D.Digraph (IM.delete sid $ IM.delete tid gnm)
+				else (D.TypedDigraph (D.Digraph (IM.delete sid $ IM.delete tid gnm)
 					 			  		       (IM.delete eid gem))
-							  	tg,
+						    tg),
 			 	les,
 				newLNodeList))
 			candidates
