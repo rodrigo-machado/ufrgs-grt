@@ -196,23 +196,22 @@ delCondGen ::
 	-> NodeCondition a
 delCondGen r ln m =
 	(\gn ->	(not $ isMapped gn m) ||
-			(toBeDeleted r (D.nodeID ln) == mappedToDel r m gn))
+		(toBeDeleted r (D.nodeID ln) == mappedToDel r m gn))
 
 -- | Check if @gn@ is a right-side node in the given mapping.
 isMapped :: D.Node a -> MapSet -> Bool
 isMapped gn (nmaps, _) =
-	let	found = S.filter (\(_, gnode) -> gnode == D.nodeID gn) nmaps
+	let found = S.filter (\(_, gnode) -> gnode == D.nodeID gn) nmaps
 	in not $ S.null found
 		
 -- | Check if @n@ was mapped to a L node marked to be deleted.
 mappedToDel :: Rule a b -> MapSet -> D.Node a -> Bool
 mappedToDel r (nmaps, _) n =
 	let nmap = S.filter (\(lnid, gnid) ->
-			gnid == nid && toBeDeleted r lnid)
-			nmaps
-		in not $ S.null nmap
-	where
-		nid = D.nodeID n
+			gnid == nid && toBeDeleted r lnid
+			) nmaps
+	in not $ S.null nmap
+	where nid = D.nodeID n
 
 -- | Check if the L node with id @nid@ is marked to be deleted.
 toBeDeleted :: Rule a b -> Int -> Bool
@@ -220,8 +219,8 @@ toBeDeleted r@(D.Morphism nal _) nid =
 	let naction = L.find (\na -> 
 		case na of
 			(Just ln, _) -> D.nodeID ln == nid
-			otherwise    -> False)
-		nal
+			otherwise    -> False
+		) nal
 	in case naction of
 		Just (_, Nothing) -> True
 		otherwise	  -> False
@@ -289,8 +288,8 @@ mapGraphs r mt l (m@(nmatch, ematch),
 					eid = D.edgeID ge
 					newLNodeList = L.filter (\n ->
 						let nid = D.nodeID n
-						in (nid /= D.sourceID le) && (nid /= D.targetID le))
-						lns
+						in (nid /= D.sourceID le) && (nid /= D.targetID le)
+						) lns
 				in
 				((S.insert (D.sourceID le, sid) $
 				  S.insert (D.targetID le, tid) $
@@ -302,8 +301,8 @@ mapGraphs r mt l (m@(nmatch, ematch),
 					 			  		       (IM.delete eid gem))
 						    tg),
 			 	les,
-				newLNodeList))
-			candidates
+				newLNodeList)
+			) candidates
 	in newMapSets >>= mapGraphs r mt l
 mapGraphs r mt l (m@(nmatch, ematch),
 	g@(D.TypedDigraph dg@(D.Digraph gnm gem) tg),
@@ -320,8 +319,8 @@ mapGraphs r mt l (m@(nmatch, ematch),
 				 then g
 				 else D.TypedDigraph (D.Digraph (IM.delete gid gnm) gem) tg,
 				 [],
-				 lns))
-			candidates
+				 lns)
+			) candidates
 	in newMapSets >>= mapGraphs r mt l
 
 
@@ -330,7 +329,8 @@ mapGraphs r mt l (m@(nmatch, ematch),
 -- considering only the subgraph inducted by the edges.
 matchGraphs :: Rule a b -> MorphismType -> D.TypedDigraph a b -> D.TypedDigraph a b -> [MapSet]
 matchGraphs r mt l@(D.TypedDigraph dl _) g =
-	map (\(m, _, _, _) -> m ) $ mapGraphs r mt l ((S.empty, S.empty), g, D.edges dl, D.nodes dl)
+	map (\(m, _, _, _) -> m ) $
+		mapGraphs r mt l ((S.empty, S.empty), g, D.edges dl, D.nodes dl)
 
 
 ------------------------------------------------------------------------
