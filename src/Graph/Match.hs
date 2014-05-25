@@ -1,15 +1,15 @@
 module Graph.Match
-        (
-        Mapping
-        , findMatches
-        , findMatchesR
-        , isSurjective
-        --, isInjective
-        , findIsoMorphisms
+    (
+    Mapping
+    , findMatches
+    , findMatchesR
+    , isSurjective
+    --, isInjective
+    , findIsoMorphisms
     , isIsomorphic
-        , MorphismType (..)
-        )
-        where
+    , MorphismType (..)
+    )
+    where
 
 import Control.Monad -- foldM
 import Data.Maybe
