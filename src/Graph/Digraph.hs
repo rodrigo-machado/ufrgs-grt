@@ -1,48 +1,50 @@
 {-# LANGUAGE TypeFamilies #-}
 module Graph.Digraph 
-   ( Edge
-   , Node
-   , Digraph
-   , Morphism (..)
-   , EdgeAction (..)
-   , empty
-   , nullG
-   , node
-   , edge
-   , Element (..)
-   , addNode
-   , addEdge
-   , removeNode
-   , removeEdge
-   , keepNode
-   , keepEdge
-   , insNode
-   , insEdge
-   , delNode
-   , delEdge
-   , nodes
-   , edges
-   , findNode
-   , source
-   , target
-   , hasEdge
-   , nodeID
-   , edgeID
-   , sourceID
-   , targetID
-   , nodePayload
-   , addNodeAction 
-   , addEdgeAction 
-   , applyActions
-   , applyMorphism
-   , applyTypedMorphism
-   , TypedDigraph (..)
-   , TGraph
-   , nodeType
-   , edgeType
-   , srcType
-   , tarType
-   ) where
+    ( Edge
+    , Node
+    , Digraph
+    , TypedDigraph
+    , numNodes
+    , numEdges
+    , Morphism (..)
+    , EdgeAction (..)
+    , empty
+    , nullG
+    , node
+    , edge
+    , Element (..)
+    , addNode
+    , addEdge
+    , removeNode
+    , removeEdge
+    , keepNode
+    , keepEdge
+    , insNode
+    , insEdge
+    , delNode
+    , delEdge
+    , nodes
+    , edges
+    , findNode
+    , source
+    , target
+    , hasEdge
+    , nodeID
+    , edgeID
+    , sourceID
+    , targetID
+    , nodePayload
+    , addNodeAction 
+    , addEdgeAction 
+    , applyActions
+    , applyMorphism
+    , applyTypedMorphism
+    , TGraph
+    , nodeType
+    , edgeType
+    , srcType
+    , tarType
+    ) where
 
 import Control.Monad
 
@@ -135,6 +137,13 @@ edges (Digraph _ em) = map snd $ IM.toList em
 data TypedDigraph a b = TypedDigraph (Digraph a b) (TGraph a b)
         deriving (Show, Read, Eq)
 
+
+numNodes :: TypedDigraph a b -> Int
+numNodes (TypedDigraph (Digraph nm _) _) = IM.size nm
+
+numEdges :: TypedDigraph a b -> Int
+numEdges (TypedDigraph (Digraph _ em) _) = IM.size em
+
 type TGraph a b = Digraph a b
 
 -- |Create an empty Digraph
@@ -193,8 +202,8 @@ keepNode (Node nid _ _) g@(Digraph ns es) =
 keepEdge :: (Monad m) => Edge b -> Digraph a b -> m (Digraph a b)
 keepEdge e g@(Digraph ns es)
     | id `IM.member` es = return g
-    | otherwise          = fail $ "keepEdge: edge "
-                                  ++ show id ++ " doesn't exist"
+    | otherwise         = fail $ "keepEdge: edge "
+                                ++ show id ++ " doesn't exist"
       where
         id = edgeID e
 
