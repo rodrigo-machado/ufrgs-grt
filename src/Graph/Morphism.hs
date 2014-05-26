@@ -1,7 +1,7 @@
 {-# LANGUAGE EmptyDataDecls #-}
 module Morphism where
 
-import Graph.Digraph
+import Graph.Graph
 
 {-| This module present morphisms of two kinds:
     Rules L <-< K >-> R are the transformations the state graph undergo,

@@ -14,6 +14,7 @@ module Graph.Match
 import Control.Monad -- foldM
 import Data.Maybe
 import qualified Graph.Graph as G
+import Graph.Morphism2
 import qualified Data.IntMap as IM
 import qualified Data.List as L
 import qualified Data.Set as S
@@ -23,9 +24,6 @@ import qualified Data.Set as S
 -- relation is described as a list of (Int, Int) tuples.
 type Mapping = ([(Int, Int)], [(Int, Int)])
 type MapSet = (S.Set (Int, Int), S.Set (Int, Int))
-
-type Rule a b = G.Morphism a b
-emptyRule = G.Morphism [] []
 
 data MorphismType = Normal | Mono | Epi | Iso 
     deriving (Eq)
@@ -202,12 +200,12 @@ mappedToDel r (nmaps, _) n =
 
 -- | Check if the L node with id @nid@ is marked to be deleted.
 toBeDeleted :: Rule a b -> Int -> Bool
-toBeDeleted r@(G.Morphism nal _) nid =
+toBeDeleted r nid =
     let naction =
          L.find (\na -> case na of
                     (Just ln, _) -> G.nodeID ln == nid
                     otherwise    -> False)
-                nal
+                $ nodeActions r
     in case naction of
         Just (_, Nothing) -> True
         otherwise         -> False
