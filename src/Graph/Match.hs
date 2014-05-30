@@ -214,12 +214,12 @@ toBeDeleted r nid =
 -- | Feed each generator it's parameters and collect the resulting
 -- nodeconditions in a list.
 generateConds ::
-        Rule a b
-        -> G.Graph a b
-        -> G.Node a 
-        -> G.Graph a b
-        -> MapSet
-        -> [NodeCondition a]
+    Rule a b
+    -> G.Graph a b
+    -> G.Node a 
+    -> G.Graph a b
+    -> MapSet
+    -> [NodeCondition a]
 generateConds r l ln g m =
     nodeTypeCondGen ln     :
     delCondGen r ln m      :
@@ -238,70 +238,62 @@ processNode cl n = L.foldr (\c acc -> (c n) && acc) True cl
 -- | Given a list of edges from @l@ to be matched and a specific mapping @m@, 
 -- return a list of all possible mappings between these edges and those
 -- from graph @g@, taking @m@ as initial mapping.
-mapGraphs
-        :: Rule a b
-        -> MorphismType
-        -> G.Graph a b        -- ^ @l@, the "left side" graph
-        -> (MapSet, G.Graph a b, [G.Edge b], [G.Node a]) -- ^ @m@, what already got mapped
-        -> [(MapSet, G.Graph a b, [G.Edge b], [G.Node a])]
+mapGraphs ::
+    Rule a b
+    -> MorphismType
+    -> G.Graph a b        -- ^ @l@, the "left side" graph
+    -> (MapSet, G.Graph a b, [G.Edge b], [G.Node a]) -- ^ @m@, what already got mapped
+    -> [(MapSet, G.Graph a b, [G.Edge b], [G.Node a])]
 mapGraphs _ mt _ ml@((nmap, emap), g, [], []) =
     case mt of
-    Epi -> let
-            gMappedNodes = S.fold (\(ln, gn) acc -> S.insert gn acc) S.empty nmap
+    Epi ->
+        let gMappedNodes = S.fold (\(ln, gn) acc -> S.insert gn acc) S.empty nmap
             gMappedEdges = S.fold (\(le, ge) acc -> S.insert ge acc) S.empty emap
-            in 
-            if S.size gMappedNodes == G.numNodes g && S.size gMappedEdges == G.numEdges g
-                then [ml]
-                else []
+        in  if S.size gMappedNodes == G.numNodes g && S.size gMappedEdges == G.numEdges g
+               then [ml]
+               else []
     Iso -> if G.nullG g
-                then [ml]
-                else []
+              then [ml]
+              else []
     otherwise -> [ml]
 mapGraphs r mt l (m@(nmatch, ematch), g, (le:les), lns) =
     let conds = generateEdgeConds l le g m
         edgeList = G.edges g
         candidates = filter (processEdge conds) $ edgeList
-        newMapSets = fmap
-                    (\ge ->
-                            let
-                                    sid = G.sourceID ge
-                                    tid = G.targetID ge
-                                    eid = G.edgeID ge
-                                    newLNodeList = L.filter (\n ->
-                                            let nid = G.nodeID n
-                                            in (nid /= G.sourceID le) && (nid /= G.targetID le)
-                                            ) lns
-                            in
-                            ((S.insert (G.sourceID le, sid) $
-                              S.insert (G.targetID le, tid) $
-                              nmatch,
-                              S.insert (G.edgeID le, eid) ematch),
-                            if mt == Normal || mt == Epi
-                            then g
-                            else G.delNode sid $ G.delNode tid $ G.delEdge eid g,
-                             les,
-                            newLNodeList)
-                    ) candidates
+        newMapSets = fmap processEdgeCandidate candidates
     in newMapSets >>= mapGraphs r mt l
-mapGraphs r mt l (m@(nmatch, ematch),
-        g,
-        [], (ln:lns)) =
-        let
-                conds = (generateConds r l ln g m)
-                candidates = filter (processNode conds) $ G.nodes g
-                newMapSets = fmap
-                        (\gn ->
-                                let gid = G.nodeID gn
-                                in
-                                ((S.insert (G.nodeID ln, gid) nmatch, ematch),
-                                 if mt == Normal || mt == Epi
-                                 then g
-                                 else G.delNode gid g,
-                                 [],
-                                 lns)
-                        ) candidates
-        in newMapSets >>= mapGraphs r mt l
-
+      where
+        processEdgeCandidate ge =
+            let sid = G.sourceID ge
+                tid = G.targetID ge
+                eid = G.edgeID ge
+                newLNodeList = L.filter (\n ->
+                    let nid = G.nodeID n
+                    in (nid /= G.sourceID le) && (nid /= G.targetID le)
+                    ) lns
+            in ((S.insert (G.sourceID le, sid) $
+                 S.insert (G.targetID le, tid) $
+                 nmatch,
+                 S.insert (G.edgeID le, eid) ematch),
+                if mt == Normal || mt == Epi
+                    then g
+                    else G.delNode sid $ G.delNode tid $ G.delEdge eid g,
+                les,
+                newLNodeList)
+mapGraphs r mt l (m@(nmatch, ematch), g, [], (ln:lns)) =
+    let conds = (generateConds r l ln g m)
+        candidates = filter (processNode conds) $ G.nodes g
+        newMapSets = fmap processNodeCandidate candidates
+    in newMapSets >>= mapGraphs r mt l
+      where
+        processNodeCandidate gn =
+            let gid = G.nodeID gn
+            in ((S.insert (G.nodeID ln, gid) nmatch, ematch),
+                if mt == Normal || mt == Epi
+                    then g
+                    else G.delNode gid g,
+                [],
+                lns)
 
 
 -- | Given two typed graph's, return a list of all possible mappings
