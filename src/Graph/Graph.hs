@@ -8,7 +8,7 @@ module Graph.Graph
     , Element (..)
     , numNodes
     , numEdges
-    , empty
+    , emptyG
     , nullG
     , node
     , edge
@@ -137,8 +137,8 @@ numEdges (Graph _ em) = IM.size em
 type TGraph a b = Graph a b
 
 -- |Create an empty Graph
-empty :: Graph a b
-empty = Graph (IM.empty) (IM.empty)
+emptyG :: Graph a b
+emptyG = Graph (IM.empty) (IM.empty)
 
 nullG :: Graph a b -> Bool
 nullG (Graph nm em) =

@@ -11,74 +11,73 @@ module Graph.Match
     )
     where
 
-import Control.Monad -- foldM
+import Control.Monad (foldM)
 import Data.Maybe
-import qualified Graph.Graph as G
+import Graph.Graph
 import Graph.Morphism2
-import qualified Data.IntMap as IM
-import qualified Data.List as L
-import qualified Data.Set as S
+import Data.List (find, foldr)
+import qualified Data.Set as Set
 
 -- | Is a tuple of two relations regarding two graphs (possibly equal):
 -- the first among their respective nodes, the other among their edges. Each
 -- relation is described as a list of (Int, Int) tuples.
 type Mapping = ([(Int, Int)], [(Int, Int)])
-type MapSet = (S.Set (Int, Int), S.Set (Int, Int))
+type MapSet = (Set.Set (Int, Int), Set.Set (Int, Int))
 
 data MorphismType = Normal | Mono | Epi | Iso 
     deriving (Eq)
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
-findMatches :: MorphismType -> G.Graph a b -> G.Graph a b -> [Mapping]
+findMatches :: MorphismType -> Graph a b -> Graph a b -> [Mapping]
 findMatches mt l g = 
     findMatchesR emptyRule mt l g
 
 -- | Given two typed graphs, return a list of mappings, each representing a
 -- possible homomorphism between the graphs.
-findMatchesR :: Rule a b -> MorphismType -> G.Graph a b -> G.Graph a b -> [Mapping]
+findMatchesR :: Rule a b -> MorphismType -> Graph a b -> Graph a b -> [Mapping]
 findMatchesR r mt l g = 
     let matches = matchGraphs r mt l g
-    in map (\(nm, em) -> (S.toList nm, S.toList em)) matches
+    in map (\(nm, em) -> (Set.toList nm, Set.toList em)) matches
 
 ----------------------------------------------------------------------------
--- G.Edge related condition functions
+-- Edge related condition functions
 
 -- An EdgeCondition checks if a node satisfies it's internal requirements.
-type EdgeCondition b = G.Edge b -> Bool
+type EdgeCondition b = Edge b -> Bool
 
 -- | Generate an edge condition that checks if both edges are from same type.
-edgeTypeCondGen :: G.Edge b -> EdgeCondition b
-edgeTypeCondGen le = (\ge -> G.edgeType le == G.edgeType ge)
+edgeTypeCondGen :: Edge b -> EdgeCondition b
+edgeTypeCondGen le = (\ge -> edgeType le == edgeType ge)
 
 -- | Generate an edge condition that checks if @le@ and @ge@ have source nodes 
 -- from same type.
-srcTypeCondGen :: G.Graph a b -> G.Edge b -> G.Graph a b -> EdgeCondition b
+srcTypeCondGen :: Graph a b -> Edge b -> Graph a b -> EdgeCondition b
 srcTypeCondGen l le g =
-        (\ge -> G.srcType le l == G.srcType ge g)
+        (\ge -> srcType le l == srcType ge g)
 
 -- | Generate an edge condition that checks if @le@ and @ge@ have target nodes 
 -- from same type.
-tarTypeCondGen :: G.Graph a b -> G.Edge b -> G.Graph a b -> EdgeCondition b
+tarTypeCondGen :: Graph a b -> Edge b -> Graph a b -> EdgeCondition b
 tarTypeCondGen l le g =
-    (\ge -> G.tarType le l == G.tarType ge g)
+    (\ge -> tarType le l == tarType ge g)
 
 -- | Generate a condition that tests if @le@'s source already occurs in @m@.
 -- If that's the case, check if @ge@'s source is the same node to which @le@'s
--- source got mapped.  If so, @ge@ is a matching G.Edge. If @le@'s source doesn't
+-- source got mapped.  If so, @ge@ is a matching Edge. If @le@'s source doesn't
 -- occur in @m@, any @ge@ will satisfy this condition.
-srcIDCondGen :: G.Edge b -> MapSet -> EdgeCondition b
+srcIDCondGen :: Edge b -> MapSet -> EdgeCondition b
 srcIDCondGen le m@(nmatches, _) =
     (\ge ->
-        let lsrc    = G.sourceID le
-            gsrc    = G.sourceID ge
-            matched = L.find (\(s, t) -> s == lsrc) $ S.toList nmatches
+        let lsrc    = sourceID le
+            gsrc    = sourceID ge
+            matched = find (\(s, t) -> s == lsrc) $ Set.toList nmatches
         in case matched of        
             Just (_, n) -> gsrc == n
             otherwise -> True)
 
 {-
-                        matched = S.toList $ S.filter (\(s, t) -> s == lsrc) S.toList nmatches
+                        matched = Set.toList $ Set.filter (\(s, t) -> s == lsrc) Set.toList nmatches
                 in case matched of
                         ((_, n):ns) -> gsrc == n
                         otherwise   -> True)
@@ -86,18 +85,18 @@ srcIDCondGen le m@(nmatches, _) =
 
 -- | Generate an edge condition that tests if @le@'s target already occurs in
 -- @m@. If that's the case, check if @ge@'s target is the same node to which
--- @le@'s target got mapped.  If so, @ge@ is a matching G.Edge. If @le@'s target
+-- @le@'s target got mapped.  If so, @ge@ is a matching Edge. If @le@'s target
 -- doesn't occur in @m@, any @ge@ will satisfy this condition.
-tarIDCondGen :: G.Edge b -> MapSet -> EdgeCondition b
+tarIDCondGen :: Edge b -> MapSet -> EdgeCondition b
 tarIDCondGen le m@(nmatches, _) =
-    (\ge -> let ltar    = G.targetID le
-                gtar    = G.targetID ge
-                matched = L.find (\(s, t) -> s == ltar) $ S.toList nmatches
+    (\ge -> let ltar    = targetID le
+                gtar    = targetID ge
+                matched = find (\(s, t) -> s == ltar) $ Set.toList nmatches
             in case matched of        
                 Just (_, n) -> gtar == n
                 otherwise -> True)
 {-
-                    matched = S.toList $ S.filter (\(s, t) -> s == ltar) nmatches
+                    matched = Set.toList $ Set.filter (\(s, t) -> s == ltar) nmatches
                 in case matched of
                         ((_, n):ns) -> gtar == n
                         otherwise   -> True)
@@ -111,12 +110,12 @@ tarIDCondGen le m@(nmatches, _) =
 -- so they aren't able to detect a mapping node in the current step. 
 -- Without @loopCond@, a loop edge that, e.g., happens to be the first to be
 -- mapped passes srcIDCond and tarIDCond.
-loopCondGen :: G.Edge b -> EdgeCondition b
+loopCondGen :: Edge b -> EdgeCondition b
 loopCondGen le =
-    (\ge -> let lsrc = G.sourceID le
-                ltar = G.targetID le
-                gsrc = G.sourceID ge
-                gtar = G.targetID ge
+    (\ge -> let lsrc = sourceID le
+                ltar = targetID le
+                gsrc = sourceID ge
+                gtar = targetID ge
             in if lsrc == ltar
                 then gsrc == gtar
                 else True)
@@ -124,9 +123,9 @@ loopCondGen le =
 -- | Feed each generator it's parameters and collect the resulting
 -- nodeconditions in a list.
 generateEdgeConds
-        :: G.Graph a b
-        -> G.Edge b 
-        -> G.Graph a b
+        :: Graph a b
+        -> Edge b 
+        -> Graph a b
         -> MapSet
         -> [EdgeCondition b]
 generateEdgeConds l le g m =
@@ -141,14 +140,14 @@ generateEdgeConds l le g m =
 
 -- | If all conditions in @cl@ get satisfied by the given edge @ge@, return the
 -- @m@ mapping with the new edge/nodes added. 
-processEdge :: [EdgeCondition b] -> G.Edge b -> Bool
-processEdge cl e = L.foldr (\c acc -> (c e) && acc) True cl 
+processEdge :: [EdgeCondition b] -> Edge b -> Bool
+processEdge cl e = foldr (\c acc -> (c e) && acc) True cl 
 
 -------------------------------------------------------------------------
--- G.Node related condition functions
+-- Node related condition functions
 
 -- A NodeCondition checks if a node satisfies it's internal requirements.
-type NodeCondition a = G.Node a -> Bool
+type NodeCondition a = Node a -> Bool
 
 -- Condition Generators
 -- This functions are meant to be called from another one that has access to a 
@@ -157,18 +156,18 @@ type NodeCondition a = G.Node a -> Bool
 -- to nodes from the G graph.
 
 -- | Generate a node condition that checks if both nodes are from same type.
-nodeTypeCondGen :: G.Node a -> NodeCondition a
-nodeTypeCondGen ln = (\n -> G.nodeType ln == G.nodeType n)
+nodeTypeCondGen :: Node a -> NodeCondition a
+nodeTypeCondGen ln = (\n -> nodeType ln == nodeType n)
 
 -- | If @ln@ is marked to be deleted, create a NodeCondition that checks if
 -- @gn@ has an edge pointed from/at it.
 danglingCondGen ::
         Rule a b
-        -> G.Graph a b
-        -> G.Node a 
+        -> Graph a b
+        -> Node a 
         -> NodeCondition a
 danglingCondGen r g ln
-    | toBeDeleted r (G.nodeID ln) = (\gn -> not $ G.hasEdge g gn)
+    | toBeDeleted r (nodeID ln) = (\gn -> not $ hasEdge g gn)
     | otherwise                   = (\gn -> True)
 
 -- | Generate a node condition that first checks if @gn@ was already mapped. If
@@ -176,34 +175,34 @@ danglingCondGen r g ln
 -- If so, they can be mapped to each other.
 delCondGen ::
         Rule a b
-        -> G.Node a 
+        -> Node a 
         -> MapSet
         -> NodeCondition a
 delCondGen r ln m =
     (\gn -> (not $ isMapped gn m) ||
-            (toBeDeleted r (G.nodeID ln) == mappedToDel r m gn))
+            (toBeDeleted r (nodeID ln) == mappedToDel r m gn))
 
 -- | Check if @gn@ is a right-side node in the given mapping.
-isMapped :: G.Node a -> MapSet -> Bool
+isMapped :: Node a -> MapSet -> Bool
 isMapped gn (nmaps, _) =
-    let found = S.filter (\(_, gnode) -> gnode == G.nodeID gn) nmaps
-    in not $ S.null found
+    let found = Set.filter (\(_, gnode) -> gnode == nodeID gn) nmaps
+    in not $ Set.null found
                 
 -- | Check if @n@ was mapped to a L node marked to be deleted.
-mappedToDel :: Rule a b -> MapSet -> G.Node a -> Bool
+mappedToDel :: Rule a b -> MapSet -> Node a -> Bool
 mappedToDel r (nmaps, _) n =
-    let nmap = S.filter (\(lnid, gnid) ->
+    let nmap = Set.filter (\(lnid, gnid) ->
                     gnid == nid && toBeDeleted r lnid
                     ) nmaps
-    in not $ S.null nmap
-      where nid = G.nodeID n
+    in not $ Set.null nmap
+      where nid = nodeID n
 
 -- | Check if the L node with id @nid@ is marked to be deleted.
 toBeDeleted :: Rule a b -> Int -> Bool
 toBeDeleted r nid =
     let naction =
-         L.find (\na -> case na of
-                    (Just ln, _) -> G.nodeID ln == nid
+         find (\na -> case na of
+                    (Just ln, _) -> nodeID ln == nid
                     otherwise    -> False)
                 $ nodeActions r
     in case naction of
@@ -215,9 +214,9 @@ toBeDeleted r nid =
 -- nodeconditions in a list.
 generateConds ::
     Rule a b
-    -> G.Graph a b
-    -> G.Node a 
-    -> G.Graph a b
+    -> Graph a b
+    -> Node a 
+    -> Graph a b
     -> MapSet
     -> [NodeCondition a]
 generateConds r l ln g m =
@@ -228,8 +227,8 @@ generateConds r l ln g m =
 
 -- | Apply each condition from @nodecl@ to the node @n@. Return True if all
 -- conditions got satisfied.
-processNode :: [NodeCondition a] -> G.Node a -> Bool
-processNode cl n = L.foldr (\c acc -> (c n) && acc) True cl
+processNode :: [NodeCondition a] -> Node a -> Bool
+processNode cl n = foldr (\c acc -> (c n) && acc) True cl
         
                 
 ----------------------------------------------------------------------------
@@ -241,67 +240,67 @@ processNode cl n = L.foldr (\c acc -> (c n) && acc) True cl
 mapGraphs ::
     Rule a b
     -> MorphismType
-    -> G.Graph a b        -- ^ @l@, the "left side" graph
-    -> (MapSet, G.Graph a b, [G.Edge b], [G.Node a]) -- ^ @m@, what already got mapped
-    -> [(MapSet, G.Graph a b, [G.Edge b], [G.Node a])]
+    -> Graph a b        -- ^ @l@, the "left side" graph
+    -> (MapSet, Graph a b, [Edge b], [Node a]) -- ^ @m@, what already got mapped
+    -> [(MapSet, Graph a b, [Edge b], [Node a])]
 mapGraphs _ mt _ ml@((nmap, emap), g, [], []) =
     case mt of
     Epi ->
-        let gMappedNodes = S.fold (\(ln, gn) acc -> S.insert gn acc) S.empty nmap
-            gMappedEdges = S.fold (\(le, ge) acc -> S.insert ge acc) S.empty emap
-        in  if S.size gMappedNodes == G.numNodes g && S.size gMappedEdges == G.numEdges g
+        let gMappedNodes = Set.fold (\(ln, gn) acc -> Set.insert gn acc) Set.empty nmap
+            gMappedEdges = Set.fold (\(le, ge) acc -> Set.insert ge acc) Set.empty emap
+        in  if Set.size gMappedNodes == numNodes g && Set.size gMappedEdges == numEdges g
                then [ml]
                else []
-    Iso -> if G.nullG g
+    Iso -> if nullG g
               then [ml]
               else []
     otherwise -> [ml]
 mapGraphs r mt l (m@(nmatch, ematch), g, (le:les), lns) =
     let conds = generateEdgeConds l le g m
-        edgeList = G.edges g
+        edgeList = edges g
         candidates = filter (processEdge conds) $ edgeList
         newMapSets = fmap processEdgeCandidate candidates
     in newMapSets >>= mapGraphs r mt l
       where
         processEdgeCandidate ge =
-            let sid = G.sourceID ge
-                tid = G.targetID ge
-                eid = G.edgeID ge
-                newLNodeList = L.filter (\n ->
-                    let nid = G.nodeID n
-                    in (nid /= G.sourceID le) && (nid /= G.targetID le)
+            let sid = sourceID ge
+                tid = targetID ge
+                eid = edgeID ge
+                newLNodeList = filter (\n ->
+                    let nid = nodeID n
+                    in (nid /= sourceID le) && (nid /= targetID le)
                     ) lns
-            in ((S.insert (G.sourceID le, sid) $
-                 S.insert (G.targetID le, tid) $
+            in ((Set.insert (sourceID le, sid) $
+                 Set.insert (targetID le, tid) $
                  nmatch,
-                 S.insert (G.edgeID le, eid) ematch),
+                 Set.insert (edgeID le, eid) ematch),
                 if mt == Normal || mt == Epi
                     then g
-                    else G.delNode sid $ G.delNode tid $ G.delEdge eid g,
+                    else delNode sid $ delNode tid $ delEdge eid g,
                 les,
                 newLNodeList)
 mapGraphs r mt l (m@(nmatch, ematch), g, [], (ln:lns)) =
     let conds = (generateConds r l ln g m)
-        candidates = filter (processNode conds) $ G.nodes g
+        candidates = filter (processNode conds) $ nodes g
         newMapSets = fmap processNodeCandidate candidates
     in newMapSets >>= mapGraphs r mt l
       where
         processNodeCandidate gn =
-            let gid = G.nodeID gn
-            in ((S.insert (G.nodeID ln, gid) nmatch, ematch),
+            let gid = nodeID gn
+            in ((Set.insert (nodeID ln, gid) nmatch, ematch),
                 if mt == Normal || mt == Epi
                     then g
-                    else G.delNode gid g,
+                    else delNode gid g,
                 [],
                 lns)
 
 
 -- | Given two typed graph's, return a list of all possible mappings
 -- considering only the subgraph inducted by the edges.
-matchGraphs :: Rule a b -> MorphismType -> G.Graph a b -> G.Graph a b -> [MapSet]
+matchGraphs :: Rule a b -> MorphismType -> Graph a b -> Graph a b -> [MapSet]
 matchGraphs r mt l g =
     map (\(m, _, _, _) -> m )
-        $ mapGraphs r mt l ((S.empty, S.empty), g, G.edges l, G.nodes l)
+        $ mapGraphs r mt l ((Set.empty, Set.empty), g, edges l, nodes l)
 
 
 ------------------------------------------------------------------------
@@ -309,13 +308,13 @@ matchGraphs r mt l g =
 
 -- | Check if mapping @m@ is surjective. 
 
--- Currently, @isSurjective@ relies on @L.nub@ to get the set of nodes and edges
+-- Currently, @isSurjective@ relies on @nub@ to get the set of nodes and edges
 -- mapped in @m@. The number of elements in this set is compared to those from
 -- graph @g@ to see if all got mapped.
 -- TODO: use Data.Set for efficiency reasons.
-isSurjective :: G.Graph a b -> MapSet -> Bool
+isSurjective :: Graph a b -> MapSet -> Bool
 isSurjective g m@(nmaps, emaps) =
-    G.numNodes g == S.size nmaps && G.numEdges g == S.size emaps
+    numNodes g == Set.size nmaps && numEdges g == Set.size emaps
 
 -- | Check if a mapping is injective.
 
@@ -334,16 +333,16 @@ isInjective (nms, ems) =
                 iter xs mem =
                         case xs of
                         [] -> True
-                        ((_, t):xs) -> if t `L.elem` mem
+                        ((_, t):xs) -> if t `elem` mem
                                           then False
                                           else iter xs (t:mem)        
 -}
 
 -- | List all isomorphisms (represented as mappings) between both graphs.
-findIsoMorphisms :: G.Graph a b -> G.Graph a b -> [Mapping]
+findIsoMorphisms :: Graph a b -> Graph a b -> [Mapping]
 findIsoMorphisms l g
-    | G.numNodes l /= G.numNodes g ||
-      G.numEdges l /= G.numEdges g = []
+    | numNodes l /= numNodes g ||
+      numEdges l /= numEdges g = []
     | otherwise                      = findMatchesR emptyRule Iso l g
 
 {-
@@ -353,7 +352,7 @@ findIsoMorphisms l g
 -}
 
 -- | Check if there's an isomorphism between two graphs.
-isIsomorphic :: G.Graph a b -> G.Graph a b -> Bool
+isIsomorphic :: Graph a b -> Graph a b -> Bool
 isIsomorphic a b = findIsoMorphisms a b /= []
 
 

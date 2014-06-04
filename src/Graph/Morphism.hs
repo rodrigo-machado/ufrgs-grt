@@ -1,5 +1,8 @@
 {-# LANGUAGE EmptyDataDecls #-}
-module Morphism where
+module Morphism {
+    Rule,
+    emptyRule
+} where
 
 import Graph.Graph
 
