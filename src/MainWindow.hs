@@ -1,16 +1,26 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module MainWindow where
+module Main where
 
 -- Common imports
 import Graphics.UI.Gtk
-import Data.Tree
+import qualified Data.Tree as TR
 import Data.Maybe
+import Data.IORef
 -- Exception handling
 import Control.Exception 
+-- Run external processes
+import System.Process
 -- Needed to safely read text from/to files
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+
+-- Parser/Printer
+import Graph.Serialized
+import Graph.Digraph
+import Graph.Rewriting
+import Graph.StateSpace
+import Assorted.Render
 
 {- | This module describes the main window of the application using
      the standard GTK library widgets
@@ -28,10 +38,28 @@ import qualified Data.Text.IO as TIO
         Image (for showing the SVG output)      
 -}
 
+--- Internal element for treeStore manipulation of Graph Grammars
+
+data GGElem a b = 
+       GraphGrammar  String
+     | TypeGraph     String (TypedDigraph a b)   -- type graph
+     | InstanceGraph String (TypedDigraph a b)   -- instance graph
+     | GraphRule     String (Rule a b) 
+--     deriving (Eq,Ord,Show,Read)                   
+
+nameOf (GraphGrammar s)    = s
+nameOf (TypeGraph s t)     = s
+nameOf (InstanceGraph s i) = s
+nameOf (GraphRule s r)     = s
+
+setName s (GraphGrammar s')    = GraphGrammar s
+setName s (TypeGraph s' t)     = (TypeGraph s t)
+setName s (InstanceGraph s' i) = (InstanceGraph s i)
+setName s (GraphRule s' r)     = (GraphRule s r)
 
 -- Test interface of application 
 
-test = do
+main = do
 
   -- Init GTK 
   initGUI
@@ -39,8 +67,8 @@ test = do
   -- Create and configure main window
   window <- windowNew
   set window [windowTitle:="VeriGraph",
-              windowDefaultWidth:=620,
-              windowDefaultHeight:=600]
+              windowDefaultWidth:=480,
+              windowDefaultHeight:=240]
    
   -- Create main vertical box
   vboxMain <- vBoxNew False 0
@@ -74,11 +102,7 @@ test = do
   --      by means of the cellLayoutSetAttributes call
 
   -- model containing the data (rose tree of strings) 
-  ts   <- treeStoreNew [Node "gg1" 
-                          [Node "tg" [], 
-                           Node "g0" [], 
-                           Node "rule1" []], 
-                        Node "gg2" []]
+  ts   <- treeStoreNew [TR.Node (GraphGrammar "gg1") []]
   -- widget for visualization of ts
   tv   <- treeViewNewWithModel ts
   boxPackStart hboxMain tv PackNatural 5
@@ -90,16 +114,29 @@ test = do
   rend <- cellRendererTextNew 
   cellLayoutPackStart col rend True
   -- connects column, renderer and model
-  cellLayoutSetAttributes col rend ts (\v -> [cellText := v,cellTextEditable := True])
+  cellLayoutSetAttributes col rend ts (\ggelem -> [cellText := nameOf ggelem,cellTextEditable := True])
 
   -- on edition of the text, keep changes
-  rend `on` edited $ \path str -> treeStoreSetValue ts path str 
+  rend `on` edited $ \path str -> do ggelem <- treeStoreGetValue ts path 
+                                     treeStoreSetValue ts path (setName str ggelem)
             
   -- END OF TREEVIEW
    
-  -- Temporary output label
+
+  -- GUI state: an IORef containing an empty Graph Grammar
+  stateGG <- newIORef $ (Serialized [] [] :: Serialized () ())
+
+
+  -- Temporary widgets for testing only
+
   label <- labelNew $ Just "Ola"
   boxPackStart hboxMain label PackNatural 5
+  
+  button <- buttonNewWithLabel "Call dot"
+  boxPackStart hboxMain button PackNatural 5
+
+  img    <- imageNew 
+  boxPackStart hboxMain img PackNatural 5
 
 
   -- Create Open and Close Dialogues associated with the main window
@@ -108,8 +145,7 @@ test = do
                  (Just window)         -- Main window
                  FileChooserActionOpen -- Save/Open customization
                  [("Cancel",ResponseCancel),("Open",ResponseAccept)] -- Buttons and actions
-  -- Starts hidden
-  widgetHide openDialog
+  widgetHide openDialog   -- Starts hidden
 
   saveDialog <- fileChooserDialogNew 
                  (Just "Save file")    -- Title
@@ -118,23 +154,50 @@ test = do
                  [("Cancel",ResponseCancel),("Save",ResponseAccept)] -- Buttons and actions
   -- Check before overwriting files
   fileChooserSetDoOverwriteConfirmation saveDialog True
-  -- Starts hidden
-  widgetHide saveDialog
-
+  widgetHide saveDialog   -- Starts hidden
 
 
   -- Callbacks
-  onDestroy window  $ mainQuit
+  onDestroy window $ mainQuit
 
   onToolButtonClicked tbOpen $ do
+     -- read file content
      str <- openFileAndGetContents openDialog
-     set label [labelText := fromMaybe "error" str]
+     -- convert it to a graph grammar
+     case str of
+       Nothing -> 
+         alert "Error loading graph grammar"
+       Just str' -> do
+         putStrLn $ "olha => " ++ str'
+         catch 
+           (writeIORef stateGG $ (unserialize str'))
+           (\e -> alert $ show (e::SomeException))
+         -- extract graph grammar
+         Serialized gl rl <- readIORef stateGG
+         -- fill treestore based on gg
+         treeStoreClear ts
+         treeStoreInsertTree ts [] 0 $ TR.Node (GraphGrammar "grammar") $ (map (\a->TR.Node a [])) $ (map (InstanceGraph "IG:") gl) ++ (map (GraphRule "RL:") rl)
+         -- load it in the interface state
+         ss <- runStateSpace 5 (head gl) rl
+         let txt = finishDot "G" $ ggToDot ss
+         --set label [labelText := dot ]
+         readProcess "dot" ["-Tsvg", "-otmp.svg"] txt
+         pb <- pixbufNewFromFileAtSize "tmp.svg" 600 600
+         --pb <- pixbufNewFromFile "tmp.svg"
+         set img [imagePixbuf := pb]
+
 
   onToolButtonClicked tbSave $ do
      str <- get label labelText 
-     saveStringAsFile saveDialog str
+     -- graph grammar as 
+     saveStringToFile saveDialog str
 
-
+  button `on` buttonActivated $ do 
+     txt <- get label labelText
+     readProcess "dot" ["-Tsvg", "-otmp.svg"] txt
+     --imageSetFromFile img "tmp.svg"
+     pb <- pixbufNewFromFileAtSize "tmp.svg" 600 600
+     set img [imagePixbuf := pb]
 
   -- Default visibility of window
   widgetShowAll window  
@@ -184,8 +247,8 @@ openFileAndGetContents openDialog = do
 
 
 -- -- Salva arquivo
-saveStringAsFile :: FileChooserDialog -> String -> IO ()
-saveStringAsFile saveDialog str = do
+saveStringToFile :: FileChooserDialog -> String -> IO ()
+saveStringToFile saveDialog str = do
      response <- dialogRun saveDialog
      case response of
        ResponseAccept -> do
