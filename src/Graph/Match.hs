@@ -13,8 +13,11 @@ module Graph.Match
 
 import Control.Monad (foldM)
 import Data.Maybe
-import Graph.Graph
-import Graph.Morphism2
+import Graph.Graph (Graph, Edge, Node, nullG,
+                    edgeType, srcType, tarType, sourceID, nodeType,
+                    targetID, nodeID, edgeID, delNode, delEdge, edges, nodes,
+                    numNodes, numEdges, hasEdge)
+import Graph.Morphism2 (Rule, emptyRule, nodeActions)
 import Data.List (find, foldr)
 import qualified Data.Set as Set
 
