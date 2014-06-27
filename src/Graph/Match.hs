@@ -12,15 +12,15 @@ module Graph.Match
     where
 
 import Control.Monad (foldM)
+import Data.List (find, foldr)
 import Data.Maybe
+import qualified Data.Set as Set
 import Graph.Graph (Graph, Edge, Node, nullG,
                     edgeType, srcType, tarType, nodeType,
                     sourceID, targetID, nodeID, edgeID,
                     delNode, delEdge, edges, nodes,
                     numNodes, numEdges, hasEdge)
 import Graph.Morphism2 (Rule, emptyRule, nodeActions)
-import Data.List (find, foldr)
-import qualified Data.Set as Set
 
 -- | Is a tuple of two relations regarding two graphs (possibly equal):
 -- the first among their respective nodes, the other among their edges. Each
