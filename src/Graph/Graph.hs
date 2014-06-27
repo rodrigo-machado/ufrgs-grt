@@ -230,6 +230,7 @@ target e d =
     let (Just n ) = findNode (targetID e) d
     in n
 
+-- | Return True if node @n@ is source/target from same edge in graph @n@.
 hasEdge :: Graph a b -> Node a -> Bool
 hasEdge g n =
     let nid   = nodeID n
