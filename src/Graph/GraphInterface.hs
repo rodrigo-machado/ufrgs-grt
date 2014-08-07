@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies, FlexibleContexts #-}
-module GraphInterface where
+module Graph.GraphInterface where
 
 import Data.Maybe
 import Data.List
