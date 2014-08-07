@@ -13,6 +13,7 @@ module Graph.Match
 
 import Control.Monad (foldM)
 import Data.Maybe
+import Graph.GraphInterface
 import Graph.Graph
 --import Graph.Morphism2
 import Data.List (find, foldr)
@@ -21,6 +22,7 @@ import qualified Data.Set as Set
 -- | Is a tuple of two relations regarding two graphs (possibly equal):
 -- the first among their respective nodes, the other among their edges. Each
 -- relation is described as a list of (Int, Int) tuples.
+data Mapping = Mapping [(Int, Int)] [(Int, Int)]
 type MapSet = (Set.Set (Int, Int), Set.Set (Int, Int))
 
 data MorphismType = Normal | Mono | Epi | Iso 
@@ -216,7 +218,7 @@ generateConds r l ln g m =
 
 -- | Apply each condition from @nodecl@ to the node @n@. Return True if all
 -- conditions got satisfied.
-processNode :: [NodeCondition a] -> Node a -> Bool
+processNode :: [NodeCondition a] -> Int -> Bool
 processNode cl n = foldr (\c acc -> (c n) && acc) True cl
         
                 
@@ -230,8 +232,8 @@ mapGraphs ::
     Rule a b
     -> MorphismType
     -> Graph a b        -- ^ @l@, the "left side" graph
-    -> (MapSet, Graph a b, [Edge b], [Node a]) -- ^ @m@, what already got mapped
-    -> [(MapSet, Graph a b, [Edge b], [Node a])]
+    -> (MapSet, Graph a b, [Int], [Int]) -- ^ @m@, what already got mapped
+    -> [(MapSet, Graph a b, [Int], [Int])]
 mapGraphs _ mt _ ml@((nmap, emap), g, [], []) =
     case mt of
     Epi ->
@@ -264,7 +266,7 @@ mapGraphs r mt l (m@(nmatch, ematch), g, (le:les), lns) =
                  Set.insert (le, eid) ematch),
                 if mt == Normal || mt == Epi
                     then g
-                    else delNode sid $ delNode tid $ delEdge eid g,
+                    else removeNode sid $ removeNode tid $ removeEdge eid g,
                 les,
                 newLNodeList)
 mapGraphs r mt l (m@(nmatch, ematch), g, [], (ln:lns)) =
@@ -273,14 +275,13 @@ mapGraphs r mt l (m@(nmatch, ematch), g, [], (ln:lns)) =
         newMapSets = fmap processNodeCandidate candidates
     in newMapSets >>= mapGraphs r mt l
       where
-        processNodeCandidate gn =
-            let gid = nodeID gn
-            in ((Set.insert (ln, gid) nmatch, ematch),
-                if mt == Normal || mt == Epi
-                    then g
-                    else delNode gid g,
-                [],
-                lns)
+        processNodeCandidate gid =
+            ((Set.insert (ln, gid) nmatch, ematch),
+             if mt == Normal || mt == Epi
+                then g
+                else removeNode gid g,
+             [],
+             lns)
 
 
 -- | Given two typed graph's, return a list of all possible mappings
@@ -354,3 +355,11 @@ sameEdgeType :: Int -> Graph a b -> Int -> Graph a b -> Bool
 sameEdgeType l le g ge =
     getTypeOfEdge l le == getTypeOfEdge g ge
 
+numNodes :: Graph a b -> Int
+numNodes g = length $ nodes g
+
+numEdges :: Graph a b -> Int
+numEdges g = length $ edges g
+
+nullG :: Graph a b -> Bool
+nullG g = null (nodes g) && null (edges g)
