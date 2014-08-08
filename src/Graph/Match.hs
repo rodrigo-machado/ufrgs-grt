@@ -15,14 +15,14 @@ import Control.Monad (foldM)
 import Data.Maybe
 import Graph.GraphInterface
 import Graph.Graph
---import Graph.Morphism2
+import Graph.Morphism
 import Data.List (find, foldr)
 import qualified Data.Set as Set
 
 -- | Is a tuple of two relations regarding two graphs (possibly equal):
 -- the first among their respective nodes, the other among their edges. Each
 -- relation is described as a list of (Int, Int) tuples.
-data Mapping = Mapping [(Int, Int)] [(Int, Int)]
+type Mapping = ([(Int, Int)], [(Int, Int)])
 type MapSet = (Set.Set (Int, Int), Set.Set (Int, Int))
 
 data MorphismType = Normal | Mono | Epi | Iso 
@@ -49,20 +49,20 @@ type EdgeCondition b = Int -> Bool
 
 -- | Generate an edge condition that checks if both edges are from same type.
 edgeTypeCondGen :: Graph a b -> Int -> Graph a b -> EdgeCondition b
-edgeTypeCondGen l le g = (\ge -> sameEdgeType le l ge g)
+edgeTypeCondGen l le g = (\ge -> sameEdgeType l le g ge)
 
 -- | Generate a condition that tests if @le@'s source already occurs in @m@.
 -- If that's the case, check if @ge@'s source is the same node to which @le@'s
 -- source got mapped.  If so, @ge@ is a matching Edge. If @le@'s source doesn't
 -- occur in @m@, any @ge@ will satisfy this condition.
 srcIDCondGen :: Graph a b -> Int -> MapSet -> Graph a b -> EdgeCondition b
-srcIDCondGen l le g m@(nmatches, _) =
+srcIDCondGen l le m@(nmatches, _) g =
     (\ge ->
         let lsrc    = sourceOf le l
             gsrc    = sourceOf ge g
-            matched = find (\(s, t) -> s == lsrc) $ Set.toList nmatches
+            matched = find (\(s, t) -> Just s == lsrc) $ Set.toList nmatches
         in case matched of        
-            Just (_, n) -> gsrc == n
+            Just (_, n) -> gsrc == Just n
             otherwise -> True)
 
 {-
@@ -80,9 +80,9 @@ tarIDCondGen :: Graph a b -> Int -> MapSet -> Graph a b -> EdgeCondition b
 tarIDCondGen l le m@(nmatches, _) g =
     (\ge -> let ltar    = targetOf le l
                 gtar    = targetOf ge g
-                matched = find (\(s, t) -> s == ltar) $ Set.toList nmatches
+                matched = find (\(s, t) -> Just s == ltar) $ Set.toList nmatches
             in case matched of        
-                Just (_, n) -> gtar == n
+                Just (_, n) -> gtar == Just n
                 otherwise -> True)
 {-
                     matched = Set.toList $ Set.filter (\(s, t) -> s == ltar) nmatches
@@ -123,14 +123,14 @@ generateEdgeConds l le g m =
     --tarTypeCondGen l le g :
     srcIDCondGen l le m g :
     tarIDCondGen l le m g :
-    loopCondGen l le m g  :
+    loopCondGen l le g  :
     []
 
 
 -- | If all conditions in @cl@ get satisfied by the given edge @ge@, return the
 -- @m@ mapping with the new edge/nodes added. 
 processEdge :: [EdgeCondition b] -> Graph a b -> Int -> Bool
-processEdge cl e g = foldr (\c acc -> (c e g) && acc) True cl 
+processEdge cl g e = foldr (\c acc -> (c e) && acc) True cl 
 
 -------------------------------------------------------------------------
 -- Node related condition functions
@@ -159,7 +159,7 @@ danglingCondGen r g ln
     | toBeDeleted r ln = (\gn -> not $ hasEdge g gn)
     | otherwise        = (\gn -> True)
       where
-        hasEdge g gn = not null $ incidentEdges gn g
+        hasEdge g gn = not $ null $ incidentEdges gn g
 
 
 -- | Generate a node condition that first checks if @gn@ was already mapped. If
@@ -211,7 +211,7 @@ generateConds ::
     -> MapSet
     -> [NodeCondition a]
 generateConds r l ln g m =
-    nodeTypeCondGen ln     :
+    nodeTypeCondGen l ln g :
     delCondGen r ln m      :
     danglingCondGen r g ln :
     []
@@ -249,19 +249,19 @@ mapGraphs _ mt _ ml@((nmap, emap), g, [], []) =
 mapGraphs r mt l (m@(nmatch, ematch), g, (le:les), lns) =
     let conds = generateEdgeConds l le g m
         edgeList = edges g
-        candidates = filter (processEdge conds) $ edgeList
+        candidates = filter (processEdge conds g) $ edgeList
         newMapSets = fmap (processEdgeCandidate g) candidates
     in newMapSets >>= mapGraphs r mt l
       where
         processEdgeCandidate g ge =
-            let sid = sourceOf ge g
-                tid = targetOf ge g
+            let sid = fromJust $ sourceOf ge g --FIX: should avoid fromJust
+                tid = fromJust $ targetOf ge g
                 eid = ge
                 newLNodeList = filter (\nid ->
-                    (nid /= sourceOf le l) && (nid /= targetOf le l)
+                    (Just nid /= sourceOf le l) && (Just nid /= targetOf le l)
                     ) lns
-            in ((Set.insert (sourceOf le l, sid) $
-                 Set.insert (targetOf le l, tid) $
+            in ((Set.insert (fromJust $ sourceOf le l, sid) $
+                 Set.insert (fromJust $ targetOf le l, tid) $
                  nmatch,
                  Set.insert (le, eid) ematch),
                 if mt == Normal || mt == Epi
@@ -347,13 +347,13 @@ isIsomorphic a b = findIsoMorphisms a b /= []
 ----------------------------------------------
 -- Helper functions
 
-sameNodeType :: Int -> Graph a b -> Int -> Graph a b -> Bool
+sameNodeType :: Graph a b -> Int -> Graph a b -> Int -> Bool
 sameNodeType l ln g gn =
-    getTypeOfNode l ln == getTypeOfNode g gn
+    getTypeOfNode ln l == getTypeOfNode gn l
 
-sameEdgeType :: Int -> Graph a b -> Int -> Graph a b -> Bool
+sameEdgeType :: Graph a b -> Int -> Graph a b -> Int -> Bool
 sameEdgeType l le g ge =
-    getTypeOfEdge l le == getTypeOfEdge g ge
+    getTypeOfEdge le l == getTypeOfEdge ge g
 
 numNodes :: Graph a b -> Int
 numNodes g = length $ nodes g

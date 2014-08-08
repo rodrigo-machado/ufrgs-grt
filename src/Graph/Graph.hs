@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
-module Graph.Graph where
+module Graph.Graph 
+    ( Graph ) where
 
 import Graph.GraphInterface
 import qualified Data.List as L
