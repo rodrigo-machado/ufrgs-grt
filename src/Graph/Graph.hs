@@ -3,8 +3,8 @@ module Graph.Graph
     ( Graph ) where
 
 import Graph.GraphInterface
-import qualified Data.List as L
-import qualified Data.List.Utils as L
+import Data.List
+import Data.List.Utils
 import Data.Maybe
 
 data Node a = Node { nodePayload :: Maybe a
@@ -27,49 +27,47 @@ instance GraphClass (Graph a b) where
   -- Build and modify graphs
     empty = Graph [] []
 
-    insertNode n g@(Graph ns es)
-        | n `elem` (L.keysAL ns) = g
-        | otherwise   = Graph (L.addToAL ns n (Node Nothing Nothing)) es
+    insertNode n g@(Graph ns es) =
+        Graph (addToAL ns n (Node Nothing Nothing)) es
 
     insertEdge e src tgt g@(Graph ns es)
-        | e `elem` (L.keysAL es) =  g
-        | src `elem` (L.keysAL ns) && tgt `elem` (L.keysAL ns) =
-            Graph ns (L.addToAL es e (Edge src tgt Nothing Nothing))
+        | src `elem` (keysAL ns) && tgt `elem` (keysAL ns) =
+            Graph ns (addToAL es e (Edge src tgt Nothing Nothing))
         | otherwise = g
 
     removeNode n g@(Graph ns es)
-        | null $ incidentEdges n g = Graph (L.delFromAL ns n) es
+        | null $ incidentEdges n g = Graph (delFromAL ns n) es
         | otherwise = g
 
-    removeEdge e (Graph ns es) = Graph ns (L.delFromAL es e)
+    removeEdge e (Graph ns es) = Graph ns (delFromAL es e)
         
-    nodes (Graph ns _) = L.keysAL ns        
-    edges (Graph _ es) = L.keysAL es        
+    nodes (Graph ns _) = keysAL ns        
+    edges (Graph _ es) = keysAL es        
     nodesConnectedTo e g@(Graph _ es) =
-        let ed = L.lookup e es
+        let ed = lookup e es
         in case ed of
             Just (Edge src tgt _ _) -> Just (src, tgt)
             otherwise -> Nothing
 
 instance TypedGraphClass (Graph a b) where
     getTypeOfNode n (Graph ns _) =
-        let found = L.lookup n ns
+        let found = lookup n ns
         in case found of
             Just nd   -> nodeType nd
             otherwise -> Nothing
     setTypeOfNode tn n (Graph ns es) =
-        let found = L.lookup n ns
+        let found = lookup n ns
         in case found of
-            Just (Node p _) -> Graph (L.addToAL ns n (Node p (Just tn))) es
+            Just (Node p _) -> Graph (addToAL ns n (Node p (Just tn))) es
             otherwise -> Graph ns es
 
     getTypeOfEdge e (Graph _ es) =
-        let found = L.lookup e es
+        let found = lookup e es
         in case found of
             Just ed   -> edgeType ed
             otherwise -> Nothing
     setTypeOfEdge te e (Graph ns es) =
-        let found = L.lookup e es
+        let found = lookup e es
         in case found of
-            Just (Edge s t p _) -> Graph ns (L.addToAL es e (Edge s t p (Just te)))
+            Just (Edge s t p _) -> Graph ns (addToAL es e (Edge s t p (Just te)))
             otherwise -> Graph ns es
